@@ -21,6 +21,7 @@ fn usage() {
     eprintln!("  conwatch modules                    list loaded modules");
     eprintln!("  conwatch block <exe-path>           block an application (Administrator)");
     eprintln!("  conwatch unblock <exe-path>         remove the block");
+    eprintln!("  conwatch autostart on|off           start conwatch-app at login (Windows)");
     eprintln!("  conwatch blocked                    list blocked applications");
 }
 
@@ -46,6 +47,7 @@ fn main() {
         }
         Some("block") => report(args.get(1).map(|e| firewall::block(e)).unwrap_or(Err("missing <exe-path>".into())), "blocked"),
         Some("unblock") => report(args.get(1).map(|e| firewall::unblock(e)).unwrap_or(Err("missing <exe-path>".into())), "unblocked"),
+        Some("autostart") => autostart(args.get(1).map(String::as_str)),
         Some("blocked") => firewall::blocked().iter().for_each(|b| println!("{b}")),
         _ => usage(),
     }
@@ -110,4 +112,35 @@ fn print_event(ev: &Event) {
         Event::TrafficSample { .. } => {}
         Event::Alert(a) => println!("! [{:?}] {}: {}", a.level, a.source, a.message),
     }
+}
+
+/// Windows: toggle `HKCU\...\Run` entry pointing to `conwatch-app.exe` next to this binary.
+fn autostart(mode: Option<&str>) {
+    if !cfg!(windows) {
+        eprintln!("autostart is only implemented on Windows");
+        return;
+    }
+    let key = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
+    let res = match mode {
+        Some("on") => {
+            let app = std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.join("conwatch-app.exe")));
+            match app.filter(|p| p.is_file()) {
+                Some(p) => std::process::Command::new("reg")
+                    .args(["add", key, "/v", "ConWatch", "/t", "REG_SZ", "/d", &format!("\"{}\"", p.display()), "/f"])
+                    .status()
+                    .map(|s| s.success())
+                    .unwrap_or(false),
+                None => {
+                    eprintln!("conwatch-app.exe not found next to conwatch.exe");
+                    false
+                }
+            }
+        }
+        Some("off") => std::process::Command::new("reg").args(["delete", key, "/v", "ConWatch", "/f"]).status().map(|s| s.success()).unwrap_or(false),
+        _ => {
+            eprintln!("usage: conwatch autostart on|off");
+            return;
+        }
+    };
+    println!("{}", if res { "ok" } else { "failed" });
 }

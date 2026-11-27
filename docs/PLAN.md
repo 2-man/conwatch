@@ -65,7 +65,7 @@ Wbudowane moduły w Rust implementują ten sam trait `Module` bez procesu.
 - [x] **0. Szkielet** – repo, licencja, workspace, plan.
 - [x] **1. Rdzeń + monitor połączeń (Windows)** – lista połączeń TCP/UDP z procesem, wykrywanie otwarcia/zamknięcia, event bus, trait `Module`, CLI `conwatch watch`.
 - [~] **2. Przepustowość** – GOTOWE: ruch całkowity, SQLite, retencja. per aplikacja przez ETW (kod gotowy, wymaga admina – pomiar na żywo do potwierdzenia). ZOSTAJE: reverse DNS, kraj. Oryginalny opis: – ETW `Microsoft-Windows-Kernel-Network` (wymaga admina; usługa pomocnicza), agregacja do SQLite, rozwiązywanie hostów (reverse DNS), kraj (GeoLite/offline DB).
-- [~] **3. UI** – GOTOWE: panel webowy (`conwatch serve`, lokalnie 127.0.0.1) z zakładkami. okno + tray (wry/tao/tray-icon, te same elementy co Tauri). ZOSTAJE: motyw ręczny, ustawienia, autostart. Oryginalny opis: – okno z zakładkami Graph / Usage / Alerts, tray z prędkością, jasny/ciemny motyw.
+- [~] **3. UI** – GOTOWE: panel webowy (`conwatch serve`, lokalnie 127.0.0.1) z zakładkami. okno + tray (wry/tao/tray-icon, te same elementy co Tauri). autostart (`conwatch autostart on`). ZOSTAJE: motyw ręczny, ekran ustawień. Oryginalny opis: – okno z zakładkami Graph / Usage / Alerts, tray z prędkością, jasny/ciemny motyw.
 - [~] **4. Firewall** – GOTOWE: blokada per aplikacja przez netsh (admin). ZOSTAJE: tryb pytania o nowe aplikacje, WFP. Oryginalny opis: – WFP: blokada per aplikacja, tryb pytania, profil.
 - [x] **5. Moduły użytkownika** (loader, stdio, uprawnienia, przykład, docs; SDK – później): – loader manifestów, protokół stdio, uprawnienia, SDK + przykłady (Rust/Python/JS), katalog modułów.
 - [x] **6. Things (LAN)** + alerty o nowych urządzeniach.
