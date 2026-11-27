@@ -1,0 +1,18 @@
+[package]
+name = "conwatch-app"
+description = "ConWatch desktop app: window + tray icon"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "conwatch-app"
+path = "src/main.rs"
+
+[dependencies]
+conwatch-core = { path = "../conwatch-core" }
+conwatch-cli = { path = "../conwatch-cli" }
+tao = "0.30"
+wry = "0.47"
+tray-icon = "0.19"

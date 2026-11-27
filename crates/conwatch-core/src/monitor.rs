@@ -29,6 +29,11 @@ impl ConnectionMonitor {
         }
     }
 
+    /// Process name for a PID from the last snapshot's process table.
+    pub fn name_of(&self, pid: u32) -> Option<String> {
+        self.sys.process(Pid::from_u32(pid)).map(|p| p.name().to_string_lossy().into_owned())
+    }
+
     /// Current established TCP connections (and bound UDP sockets).
     pub fn snapshot(&mut self) -> Result<Vec<Connection>, String> {
         self.sys.refresh_processes(ProcessesToUpdate::All, true);

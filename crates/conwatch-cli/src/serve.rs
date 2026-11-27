@@ -4,6 +4,7 @@ use crate::{build_engine, data_dir};
 use conwatch_core::event::Event;
 use conwatch_core::lan::LanScanner;
 use conwatch_core::monitor::ConnectionMonitor;
+use conwatch_core::procnet::{self, DeltaTracker, ProcCounters};
 use conwatch_core::storage::{now_secs, Storage};
 use conwatch_core::traffic::TrafficSampler;
 use conwatch_core::{firewall, Connection};
@@ -22,26 +23,37 @@ struct State {
     traffic: VecDeque<(i64, u64, u64)>,
     modules: Vec<String>,
     module_errors: Vec<String>,
+    /// None = per-app tracking active; Some(reason) = unavailable.
+    procnet_error: Option<String>,
 }
 
-pub fn run(port: u16, open: bool) {
-    let server = match Server::http(("127.0.0.1", port)) {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("cannot listen on 127.0.0.1:{port}: {e}");
-            std::process::exit(1);
-        }
-    };
+/// Bind the dashboard, start background collection and serving threads, return immediately.
+pub fn start(port: u16) -> Result<String, String> {
+    let server = Server::http(("127.0.0.1", port)).map_err(|e| format!("cannot listen on 127.0.0.1:{port}: {e}"))?;
     let db_path = data_dir().join("conwatch.db");
-    let store = Arc::new(Mutex::new(Storage::open(&db_path).expect("open database")));
+    let store = Arc::new(Mutex::new(Storage::open(&db_path)?));
     let state = Arc::new(Mutex::new(State::default()));
-
     {
         let (state, store) = (state.clone(), store.clone());
         thread::spawn(move || collector(state, store));
     }
-    let url = format!("http://127.0.0.1:{port}");
-    println!("ConWatch dashboard: {url}  (data: {})", db_path.display());
+    thread::spawn(move || {
+        for req in server.incoming_requests() {
+            handle(req, &state, &store);
+        }
+    });
+    Ok(format!("http://127.0.0.1:{port}"))
+}
+
+pub fn run(port: u16, open: bool) {
+    let url = match start(port) {
+        Ok(u) => u,
+        Err(e) => {
+            eprintln!("{e}");
+            std::process::exit(1);
+        }
+    };
+    println!("ConWatch dashboard: {url}  (data: {})", data_dir().join("conwatch.db").display());
     if open {
         let _ = if cfg!(windows) {
             std::process::Command::new("cmd").args(["/C", "start", "", &url]).spawn()
@@ -49,8 +61,8 @@ pub fn run(port: u16, open: bool) {
             std::process::Command::new("open").arg(&url).spawn()
         };
     }
-    for req in server.incoming_requests() {
-        handle(req, &state, &store);
+    loop {
+        thread::park();
     }
 }
 
@@ -61,6 +73,17 @@ fn collector(state: Arc<Mutex<State>>, store: Arc<Mutex<Storage>>) {
         s.modules = names;
         s.module_errors = errors;
     }
+    let counters = ProcCounters::default();
+    let _session = match procnet::start(counters.clone()) {
+        Ok(s) => Some(s),
+        Err(e) => {
+            eprintln!("per-application traffic disabled: {e}");
+            state.lock().unwrap().procnet_error = Some(e);
+            None
+        }
+    };
+    let mut deltas = DeltaTracker::default();
+    let mut names: std::collections::HashMap<u32, String> = Default::default();
     let mut mon = ConnectionMonitor::new();
     let mut lan = LanScanner::new();
     let mut traffic = TrafficSampler::new();
@@ -73,6 +96,20 @@ fn collector(state: Arc<Mutex<State>>, store: Arc<Mutex<Storage>>) {
             events.extend(lan.poll());
         }
         let all = engine.dispatch(events);
+        if _session.is_some() {
+            let d = deltas.delta(counters.snapshot());
+            let st = store.lock().unwrap();
+            for (pid, (rx, tx)) in d {
+                let name = match mon.name_of(pid) {
+                    Some(n) => {
+                        names.insert(pid, n.clone());
+                        n
+                    }
+                    None => names.get(&pid).cloned().unwrap_or_else(|| format!("pid {pid}")),
+                };
+                let _ = st.record_app(&name, rx, tx);
+            }
+        }
         {
             let st = store.lock().unwrap();
             for ev in &all {
@@ -153,6 +190,8 @@ fn handle(mut req: Request, state: &Arc<Mutex<State>>, store: &Arc<Mutex<Storage
                     "modules": s.modules,
                     "module_errors": s.module_errors,
                     "blocked": firewall::blocked(),
+                    "apps": st.app_usage_since(now - 86400, 30).unwrap_or_default().into_iter().map(|(a, r, x)| json!({"app": a, "rx": r, "tx": x})).collect::<Vec<_>>(),
+                    "apps_error": s.procnet_error,
                 }),
                 200,
             )

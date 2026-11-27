@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/conwatch-core", "crates/conwatch-cli"]
+members = ["crates/conwatch-core", "crates/conwatch-cli", "crates/conwatch-app"]
 
 [workspace.package]
 version = "0.1.0"

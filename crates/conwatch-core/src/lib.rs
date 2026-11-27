@@ -8,6 +8,7 @@ pub mod firewall;
 pub mod lan;
 pub mod module;
 pub mod monitor;
+pub mod procnet;
 pub mod storage;
 pub mod traffic;
 

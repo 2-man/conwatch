@@ -6,6 +6,10 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[lib]
+name = "conwatch_cli"
+path = "src/lib.rs"
+
 [[bin]]
 name = "conwatch"
 path = "src/main.rs"

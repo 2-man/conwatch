@@ -26,6 +26,8 @@ impl Storage {
         db.execute_batch(
             "CREATE TABLE IF NOT EXISTS traffic(ts INTEGER NOT NULL, rx INTEGER NOT NULL, tx INTEGER NOT NULL, ms INTEGER NOT NULL);
              CREATE INDEX IF NOT EXISTS traffic_ts ON traffic(ts);
+             CREATE TABLE IF NOT EXISTS app_traffic(ts INTEGER NOT NULL, app TEXT NOT NULL, rx INTEGER NOT NULL, tx INTEGER NOT NULL);
+             CREATE INDEX IF NOT EXISTS app_traffic_ts ON app_traffic(ts);
              CREATE TABLE IF NOT EXISTS alerts(ts INTEGER NOT NULL, level TEXT NOT NULL, source TEXT NOT NULL, message TEXT NOT NULL);",
         )
         .map_err(|e| e.to_string())?;
@@ -48,6 +50,27 @@ impl Storage {
         }
         .map(|_| ())
         .map_err(|e| e.to_string())
+    }
+
+    pub fn record_app(&self, app: &str, rx: u64, tx: u64) -> Result<(), String> {
+        self.db
+            .execute("INSERT INTO app_traffic VALUES(?,?,?,?)", params![now_secs(), app, rx as i64, tx as i64])
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    }
+
+    /// Top applications by total bytes since `since`: (app, rx, tx).
+    pub fn app_usage_since(&self, since: i64, limit: usize) -> Result<Vec<(String, u64, u64)>, String> {
+        let mut st = self
+            .db
+            .prepare("SELECT app, SUM(rx), SUM(tx) FROM app_traffic WHERE ts>=? GROUP BY app ORDER BY SUM(rx)+SUM(tx) DESC LIMIT ?")
+            .map_err(|e| e.to_string())?;
+        let rows = st
+            .query_map(params![since, limit as i64], |r| {
+                Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)? as u64, r.get::<_, i64>(2)? as u64))
+            })
+            .map_err(|e| e.to_string())?;
+        rows.collect::<Result<_, _>>().map_err(|e| e.to_string())
     }
 
     /// (ts, rx_bytes_per_sec, tx_bytes_per_sec) since `since`, oldest first.
@@ -93,7 +116,7 @@ impl Storage {
     /// Retention: delete traffic rows older than `days`.
     pub fn prune(&self, days: i64) -> Result<(), String> {
         self.db
-            .execute("DELETE FROM traffic WHERE ts<?", [now_secs() - days * 86400])
+            .execute_batch(&format!("DELETE FROM traffic WHERE ts<{0}; DELETE FROM app_traffic WHERE ts<{0};", now_secs() - days * 86400))
             .map(|_| ())
             .map_err(|e| e.to_string())
     }
@@ -110,5 +133,9 @@ mod tests {
         assert_eq!(s.traffic_since(0).unwrap()[0].1, 2000);
         assert_eq!(s.usage_since(0).unwrap(), (2000, 1000));
         assert_eq!(s.recent_alerts(5).unwrap().len(), 1);
+        s.record_app("a.exe", 10, 5).unwrap();
+        s.record_app("a.exe", 10, 5).unwrap();
+        assert_eq!(s.app_usage_since(0, 5).unwrap(), vec![("a.exe".to_string(), 20, 10)]);
+        s.prune(1).unwrap();
     }
 }
