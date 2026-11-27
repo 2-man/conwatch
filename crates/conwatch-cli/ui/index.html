@@ -46,6 +46,7 @@ button.act{background:var(--bg);border:1px solid var(--line);color:var(--fg);bor
     <label>Keep history (days)</label><input id="sRet" type="number" min="1" max="3650">
     <label>Traffic spike alert threshold (MB/s)</label><input id="sSpike" type="number" min="1" max="10000">
     <label><input id="sNew" type="checkbox"> Alert when a new application uses the network</label>
+    <label><input id="sAuto" type="checkbox"> Automatically block every new application (needs Administrator; may break software that was never seen before)</label>
     <p><button class="act" id="sSave">Save</button></p>
     <p class="sub" id="geoNote"></p></div></section>
   <section class="tab" id="fw"><div class="card"><h2>Blocked applications</h2><table><tbody id="fwRows"></tbody></table><p class="sub">Blocking uses Windows Firewall and requires running ConWatch as Administrator.</p></div>
@@ -70,7 +71,7 @@ function chart(){const c=$('cv'),d=devicePixelRatio||1,w=c.clientWidth,h=c.clien
 function blockBtn(msg){const name=msg.split(': ').pop();const c=S.connections.find(c=>c.process===name&&c.exe);return c?` <button class="act" data-exe="${esc(c.exe)}">Block</button>`:''}
 function applyTheme(){const t=S&&S.settings.theme;if(t&&t!=='auto')document.documentElement.dataset.theme=t;else delete document.documentElement.dataset.theme}
 let formFilled=false;
-function fillSettings(){if(formFilled||!S)return;formFilled=true;$('sTheme').value=S.settings.theme;$('sRet').value=S.settings.retention_days;$('sSpike').value=S.settings.spike_mb_s;$('sNew').checked=S.settings.alert_new_apps;$('geoNote').textContent=S.geo?'Country lookup active (GeoLite2-Country.mmdb found).':'Country lookup is off: place GeoLite2-Country.mmdb (free from MaxMind) in %LOCALAPPDATA%\\ConWatch and restart.'}
+function fillSettings(){if(formFilled||!S)return;formFilled=true;$('sTheme').value=S.settings.theme;$('sRet').value=S.settings.retention_days;$('sSpike').value=S.settings.spike_mb_s;$('sNew').checked=S.settings.alert_new_apps;$('sAuto').checked=S.settings.auto_block_new_apps;$('geoNote').textContent=S.geo?'Country lookup active (GeoLite2-Country.mmdb found).':'Country lookup is off: place GeoLite2-Country.mmdb (free from MaxMind) in %LOCALAPPDATA%\\ConWatch and restart.'}
 function draw(){if(!S)return;applyTheme();fillSettings();const l=S.traffic.at(-1)||[0,0,0];$('rx').textContent=fmt(l[1])+'/s';$('tx').textContent=fmt(l[2])+'/s';
  if(cur==='graph')chart();
  if(cur==='usage')$('usageCards').innerHTML=[['Last 24 hours','day'],['Last 7 days','week'],['Last 30 days','month']].map(([n,k])=>`<div class="card"><div class="sub">${n}</div><div class="big rx">▼ ${fmt(S.usage[k][0])}</div><div class="big tx">▲ ${fmt(S.usage[k][1])}</div></div>`).join('');
@@ -82,7 +83,7 @@ function draw(){if(!S)return;applyTheme();fillSettings();const l=S.traffic.at(-1
  if(cur==='fw'){$('fwRows').innerHTML=S.blocked.map(b=>`<tr><td>${esc(b)}</td><td><button class="act" data-un="${esc(b)}">Unblock</button></td></tr>`).join('')||'<tr><td class="empty">Nothing blocked</td></tr>';
   $('mods').innerHTML=S.modules.map(m=>`<span class="pill">${esc(m)}</span> `).join('')+S.module_errors.map(e=>`<div class="critical">${esc(e)}</div>`).join('')}}
 document.body.addEventListener('click',e=>{const t=e.target;if(t.dataset.exe&&confirm('Block '+t.dataset.exe+'?'))api('/api/block',t.dataset.exe);if(t.dataset.un)api('/api/unblock',t.dataset.un)});
-$('sSave').onclick=async()=>{const body={theme:$('sTheme').value,retention_days:+$('sRet').value,spike_mb_s:+$('sSpike').value,alert_new_apps:$('sNew').checked};const r=await fetch('/api/settings',{method:'POST',headers:{'X-ConWatch':'1'},body:JSON.stringify(body)});const j=await r.json();toast(j.ok?'Saved':'Error: '+j.error);formFilled=false;refresh()};
+$('sSave').onclick=async()=>{const body={theme:$('sTheme').value,retention_days:+$('sRet').value,spike_mb_s:+$('sSpike').value,alert_new_apps:$('sNew').checked,auto_block_new_apps:$('sAuto').checked};const r=await fetch('/api/settings',{method:'POST',headers:{'X-ConWatch':'1'},body:JSON.stringify(body)});const j=await r.json();toast(j.ok?'Saved':'Error: '+j.error);formFilled=false;refresh()};
 async function refresh(){try{S=await(await fetch('/api/state')).json();draw()}catch(e){}}
 show(cur);refresh();setInterval(refresh,1500);addEventListener('resize',draw);
 </script>

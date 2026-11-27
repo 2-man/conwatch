@@ -1,7 +1,7 @@
 //! Local dashboard server. Binds to 127.0.0.1 only.
 
 use crate::{build_engine, data_dir};
-use conwatch_core::event::Event;
+use conwatch_core::event::{Alert, AlertLevel, Event};
 use conwatch_core::lan::LanScanner;
 use conwatch_core::monitor::ConnectionMonitor;
 use conwatch_core::procnet::{self, DeltaTracker, ProcCounters};
@@ -118,7 +118,20 @@ fn collector(state: Arc<Mutex<State>>, store: Arc<Mutex<Storage>>) {
         if tick % 10 == 0 {
             events.extend(lan.poll());
         }
-        let all = engine.dispatch(events);
+        let mut all = engine.dispatch(events);
+        if state.lock().unwrap().settings.auto_block_new_apps {
+            let mut extra = Vec::new();
+            for ev in &all {
+                if let Event::AppFirstSeen { process, exe: Some(exe) } = ev {
+                    let (level, msg) = match firewall::block(exe) {
+                        Ok(()) => (AlertLevel::Warning, format!("Automatically blocked new application: {process}")),
+                        Err(e) => (AlertLevel::Critical, format!("Could not block {process}: {e}")),
+                    };
+                    extra.push(Event::Alert(Alert { level, source: "auto-block".into(), message: msg }));
+                }
+            }
+            all.extend(extra);
+        }
         if _session.is_some() {
             let d = deltas.delta(counters.snapshot());
             let st = store.lock().unwrap();
