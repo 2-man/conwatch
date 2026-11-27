@@ -52,6 +52,29 @@ pub struct ProcNetSession {
 }
 
 #[cfg(windows)]
+const SESSION_PREFIX: &str = "ConWatchNet-";
+
+/// Stop ETW sessions left behind by ConWatch processes that no longer exist (e.g. killed).
+#[cfg(windows)]
+fn cleanup_stale_sessions() {
+    let mut q = std::process::Command::new("logman");
+    q.args(["query", "-ets"]);
+    let Ok(out) = crate::no_window(&mut q).output() else { return };
+    let text = String::from_utf8_lossy(&out.stdout).to_string();
+    let mut sys = sysinfo::System::new();
+    sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+    for line in text.lines() {
+        let Some(name) = line.split_whitespace().next() else { continue };
+        let Some(pid) = name.strip_prefix(SESSION_PREFIX).and_then(|p| p.parse::<u32>().ok()) else { continue };
+        if pid != std::process::id() && sys.process(sysinfo::Pid::from_u32(pid)).is_none() {
+            let mut c = std::process::Command::new("logman");
+            c.args(["stop", name, "-ets"]);
+            let _ = crate::no_window(&mut c).output();
+        }
+    }
+}
+
+#[cfg(windows)]
 pub fn start(counters: ProcCounters) -> Result<ProcNetSession, String> {
     use ferrisetw::parser::Parser;
     use ferrisetw::provider::Provider;
@@ -59,6 +82,7 @@ pub fn start(counters: ProcCounters) -> Result<ProcNetSession, String> {
     use ferrisetw::trace::UserTrace;
     use ferrisetw::EventRecord;
 
+    cleanup_stale_sessions();
     // Microsoft-Windows-Kernel-Network. Event ids: 10/26 TCP send (v4/v6), 11/27 TCP recv,
     // 42/58 UDP send, 43/59 UDP recv. Fields: PID, size.
     let provider = Provider::by_guid("7DD42A49-5329-4832-8DFD-43D979153A88")
@@ -79,7 +103,7 @@ pub fn start(counters: ProcCounters) -> Result<ProcNetSession, String> {
         })
         .build();
     let trace = UserTrace::new()
-        .named("ConWatchNet".to_string())
+        .named(format!("{SESSION_PREFIX}{}", std::process::id()))
         .enable(provider)
         .start_and_process()
         .map_err(|e| format!("cannot start ETW session (run as Administrator): {e:?}"))?;

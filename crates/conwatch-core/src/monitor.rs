@@ -99,7 +99,8 @@ impl ConnectionMonitor {
             let mut opened: Vec<_> = now.difference(&self.known).cloned().collect();
             opened.sort_by(|a, b| a.process.cmp(&b.process));
             for c in opened {
-                if self.seen_apps.insert(c.process.clone()) {
+                let external = c.proto == Proto::Tcp && !c.remote_addr.is_loopback() && !c.remote_addr.is_unspecified();
+                if external && self.seen_apps.insert(c.process.clone()) {
                     events.push(Event::AppFirstSeen {
                         process: c.process.clone(),
                         exe: c.exe.clone(),

@@ -36,6 +36,21 @@ struct State {
     geo: Option<Geo>,
 }
 
+/// Never auto-block Windows components or ConWatch itself.
+fn is_protected(exe: &str) -> bool {
+    let norm = |s: &str| s.replace('/', "\\").to_lowercase();
+    let e = norm(exe);
+    let windir = std::env::var("SystemRoot").map(|w| norm(&w)).unwrap_or_else(|_| "c:\\windows".into());
+    if e.starts_with(&format!("{windir}\\")) {
+        return true;
+    }
+    std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| norm(&d.to_string_lossy())))
+        .map(|dir| e.starts_with(&format!("{dir}\\")))
+        .unwrap_or(false)
+}
+
 fn settings_path() -> std::path::PathBuf {
     data_dir().join("settings.json")
 }
@@ -109,12 +124,27 @@ fn collector(state: Arc<Mutex<State>>, store: Arc<Mutex<Storage>>) {
     let mut deltas = DeltaTracker::default();
     let mut names: std::collections::HashMap<u32, String> = Default::default();
     let mut mon = ConnectionMonitor::new();
+    // Everything already talking to the network at startup counts as known.
+    if let Ok(snap) = mon.snapshot() {
+        let st = store.lock().unwrap();
+        for c in &snap {
+            st.mark_known(c.exe.as_deref().unwrap_or(&c.process));
+        }
+    }
     let mut lan = LanScanner::new();
     let mut traffic = TrafficSampler::new();
     let mut tick = 0u64;
     loop {
         thread::sleep(Duration::from_secs(1));
         let mut events = mon.poll().unwrap_or_default();
+        // "New application" means never seen before, across restarts.
+        {
+            let st = store.lock().unwrap();
+            events.retain(|e| match e {
+                Event::AppFirstSeen { process, exe } => st.mark_known(exe.as_deref().unwrap_or(process)),
+                _ => true,
+            });
+        }
         events.push(traffic.sample());
         if tick % 10 == 0 {
             events.extend(lan.poll());
@@ -124,6 +154,9 @@ fn collector(state: Arc<Mutex<State>>, store: Arc<Mutex<Storage>>) {
             let mut extra = Vec::new();
             for ev in &all {
                 if let Event::AppFirstSeen { process, exe: Some(exe) } = ev {
+                    if is_protected(exe) {
+                        continue;
+                    }
                     let (level, msg) = match firewall::block(exe) {
                         Ok(()) => (AlertLevel::Warning, format!("Automatically blocked new application: {process}")),
                         Err(e) => (AlertLevel::Critical, format!("Could not block {process}: {e}")),

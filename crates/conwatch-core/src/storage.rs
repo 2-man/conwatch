@@ -28,6 +28,7 @@ impl Storage {
              CREATE INDEX IF NOT EXISTS traffic_ts ON traffic(ts);
              CREATE TABLE IF NOT EXISTS app_traffic(ts INTEGER NOT NULL, app TEXT NOT NULL, rx INTEGER NOT NULL, tx INTEGER NOT NULL);
              CREATE INDEX IF NOT EXISTS app_traffic_ts ON app_traffic(ts);
+             CREATE TABLE IF NOT EXISTS known_apps(app TEXT PRIMARY KEY, first_seen INTEGER NOT NULL);
              CREATE TABLE IF NOT EXISTS alerts(ts INTEGER NOT NULL, level TEXT NOT NULL, source TEXT NOT NULL, message TEXT NOT NULL);",
         )
         .map_err(|e| e.to_string())?;
@@ -50,6 +51,14 @@ impl Storage {
         }
         .map(|_| ())
         .map_err(|e| e.to_string())
+    }
+
+    /// Remember an application permanently. Returns true only the first time it is ever seen.
+    pub fn mark_known(&self, app: &str) -> bool {
+        self.db
+            .execute("INSERT OR IGNORE INTO known_apps VALUES(?,?)", params![app.to_lowercase(), now_secs()])
+            .map(|n| n == 1)
+            .unwrap_or(false)
     }
 
     pub fn record_app(&self, app: &str, rx: u64, tx: u64) -> Result<(), String> {
@@ -136,6 +145,8 @@ mod tests {
         s.record_app("a.exe", 10, 5).unwrap();
         s.record_app("a.exe", 10, 5).unwrap();
         assert_eq!(s.app_usage_since(0, 5).unwrap(), vec![("a.exe".to_string(), 20, 10)]);
+        assert!(s.mark_known("C:\\A.exe"));
+        assert!(!s.mark_known("c:\\a.exe"));
         s.prune(1).unwrap();
     }
 }
