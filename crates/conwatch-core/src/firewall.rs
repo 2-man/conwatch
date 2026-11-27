@@ -21,7 +21,7 @@ fn validate(exe: &str) -> Result<(), String> {
 
 #[cfg(windows)]
 fn netsh(args: &[&str]) -> Result<String, String> {
-    let o = std::process::Command::new("netsh").args(args).output().map_err(|e| e.to_string())?;
+    let o = crate::no_window(std::process::Command::new("netsh").args(args)).output().map_err(|e| e.to_string())?;
     let out = String::from_utf8_lossy(&o.stdout).to_string();
     if o.status.success() {
         Ok(out)

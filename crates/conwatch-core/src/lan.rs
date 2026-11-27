@@ -47,8 +47,7 @@ impl LanScanner {
 
     pub fn devices(&self) -> Vec<(String, String)> {
         let args: &[&str] = if cfg!(windows) { &["-a"] } else { &["-an"] };
-        Command::new("arp")
-            .args(args)
+        crate::no_window(Command::new("arp").args(args))
             .output()
             .map(|o| parse_arp(&String::from_utf8_lossy(&o.stdout)))
             .unwrap_or_default()

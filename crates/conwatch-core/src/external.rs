@@ -70,12 +70,9 @@ impl ExternalModule {
     }
 
     pub fn spawn(dir: &Path, manifest: Manifest) -> Result<Self, String> {
-        let mut child = Command::new(&manifest.command)
-            .args(&manifest.args)
-            .current_dir(dir)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null())
+        let mut cmd = Command::new(&manifest.command);
+        cmd.args(&manifest.args).current_dir(dir).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null());
+        let mut child = crate::no_window(&mut cmd)
             .spawn()
             .map_err(|e| format!("{}: cannot start '{}': {e}", manifest.name, manifest.command))?;
         let stdin = child.stdin.take();

@@ -29,6 +29,7 @@ struct State {
     /// None = per-app tracking active; Some(reason) = unavailable.
     procnet_error: Option<String>,
     settings: Settings,
+    blocked: Vec<String>,
     spike_bps: Arc<AtomicU64>,
     new_app_alerts: Arc<AtomicBool>,
     resolver: HostResolver,
@@ -174,6 +175,13 @@ fn collector(state: Arc<Mutex<State>>, store: Arc<Mutex<Storage>>) {
         if tick % 10 == 0 {
             s.devices = lan.devices();
         }
+        if tick % 30 == 0 {
+            // netsh is slow; refresh the cached list rarely (and right after block/unblock).
+            drop(s);
+            let b = firewall::blocked();
+            s = state.lock().unwrap();
+            s.blocked = b;
+        }
         tick += 1;
     }
 }
@@ -235,7 +243,7 @@ fn handle(mut req: Request, state: &Arc<Mutex<State>>, store: &Arc<Mutex<Storage
                     "alerts": alerts,
                     "modules": s.modules,
                     "module_errors": s.module_errors,
-                    "blocked": firewall::blocked(),
+                    "blocked": s.blocked,
                     "apps": st.app_usage_since(now - 86400, 30).unwrap_or_default().into_iter().map(|(a, r, x)| json!({"app": a, "rx": r, "tx": x})).collect::<Vec<_>>(),
                     "apps_error": s.procnet_error,
                 }),
@@ -274,7 +282,11 @@ fn handle(mut req: Request, state: &Arc<Mutex<State>>, store: &Arc<Mutex<Storage
                 (_, Some(exe)) => {
                     let r = if url == "/api/block" { firewall::block(&exe) } else { firewall::unblock(&exe) };
                     match r {
-                        Ok(()) => json_resp(json!({"ok": true}), 200),
+                        Ok(()) => {
+                            let b = firewall::blocked();
+                            state.lock().unwrap().blocked = b;
+                            json_resp(json!({"ok": true}), 200)
+                        }
                         Err(e) => json_resp(json!({"error": e}), 500),
                     }
                 }
