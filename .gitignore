@@ -1,0 +1,7 @@
+/target
+Cargo.lock.bak
+node_modules/
+dist/
+*.db
+.vscode/
+.idea/

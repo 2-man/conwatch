@@ -1,0 +1,15 @@
+[package]
+name = "conwatch-cli"
+description = "ConWatch command line interface"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "conwatch"
+path = "src/main.rs"
+
+[dependencies]
+conwatch-core = { path = "../conwatch-core" }
+serde_json = "1"
