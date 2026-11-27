@@ -6,6 +6,7 @@ pub mod event;
 pub mod external;
 pub mod firewall;
 pub mod geodb;
+pub mod icons;
 pub mod lan;
 pub mod module;
 pub mod monitor;

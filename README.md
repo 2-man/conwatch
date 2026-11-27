@@ -15,7 +15,8 @@ Interfejs wzorowany na koncepcji GlassWire (własna implementacja, bez jego zaso
 **Alerts** (log z grupowaniem po dniach, „NEW”, nieprzeczytane, filtr, szukanie),
 **Network** (skaner LAN z producentami z bazy IEEE OUI, Scan i auto-scan),
 **System** (CPU, pamięć, dysk) oraz **Settings** (motyw jasny/ciemny/auto, retencja, alerty, pobranie bazy krajów).
-Brak jeszcze: widoku mapy świata i ikon aplikacji (zamiast nich kolorowe awatary), GPU w zakładce System.
+Widok **mapy świata** (kolor i kółka wg ruchu do kraju, przybliżanie, przesuwanie, podpowiedzi), **ikony aplikacji** pobierane z plików .exe (z awatarem jako zapasem) i **flagi krajów**.
+Brak jeszcze: GPU w zakładce System, ikon aplikacji na macOS.
 
 ## Funkcje (v0.3)
 
@@ -45,6 +46,13 @@ cargo run -p conwatch-cli -- block C:\Path\app.exe  # jako Administrator
 
 Moduł to proces wymieniający zdarzenia JSON po stdio, opisany plikiem `module.toml`.
 Przykład: [`modules/example-telnet-alert`](modules/example-telnet-alert).
+
+## Dane i zasoby stron trzecich
+
+- Mapa świata: [Natural Earth](https://www.naturalearthdata.com/) 110m (domena publiczna), wygenerowana skryptem `tools/make_assets.py`.
+- Flagi: PNG z [flagcdn.com](https://flagcdn.com/) (wbudowane w program).
+- Producenci urządzeń: publiczny rejestr IEEE OUI.
+- Kraje hostów: baza [DB-IP Lite](https://db-ip.com/db/lite.php) (CC BY 4.0), pobierana wyłącznie na Twoje żądanie w Ustawieniach.
 
 ## Licencja
 

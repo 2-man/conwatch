@@ -7,19 +7,19 @@
 <style>
 :root{
   --bg:#ffffff;--panel:#f5f7fa;--card:#ffffff;--fg:#1d2733;--mut:#7c8794;--line:#e6eaef;--hover:#f0f3f7;
-  --acc:#3d7bf7;--acc-bg:#e8f0ff;--chart:#e9f8f8;--grid:#cfe6e8;
+  --acc:#3d7bf7;--acc-bg:#e8f0ff;--chart:#e9f8f8;--grid:#cfe6e8;--land:#d6e0ea;
   --rx:#f7c829;--rx-line:#eab308;--tx:#f08fb0;--tx-line:#e0608f;
   --good:#37a849;--good-bg:#e2f5e5;--bad:#d9433c;--bad-bg:#fbe5e3;--warn:#e69a00;--new-bg:#fff9ea;
   --shadow:0 1px 3px rgba(20,30,45,.08);
 }
 @media(prefers-color-scheme:dark){:root:not([data-theme=light]){
   --bg:#12171d;--panel:#171d25;--card:#1b222b;--fg:#e8edf3;--mut:#8c98a6;--line:#27303b;--hover:#212a35;
-  --acc:#6ea0ff;--acc-bg:#1f2d47;--chart:#12262b;--grid:#1f3a40;
+  --acc:#6ea0ff;--acc-bg:#1f2d47;--chart:#12262b;--grid:#1f3a40;--land:#25384a;
   --rx:#e9b91c;--rx-line:#f2c94c;--tx:#e0709a;--tx-line:#ff8fb7;
   --good:#4cc364;--good-bg:#1b3523;--bad:#ff6b63;--bad-bg:#3a1f1e;--warn:#f2b53a;--new-bg:#2a2616;--shadow:none}}
 :root[data-theme=dark]{
   --bg:#12171d;--panel:#171d25;--card:#1b222b;--fg:#e8edf3;--mut:#8c98a6;--line:#27303b;--hover:#212a35;
-  --acc:#6ea0ff;--acc-bg:#1f2d47;--chart:#12262b;--grid:#1f3a40;
+  --acc:#6ea0ff;--acc-bg:#1f2d47;--chart:#12262b;--grid:#1f3a40;--land:#25384a;
   --rx:#e9b91c;--rx-line:#f2c94c;--tx:#e0709a;--tx-line:#ff8fb7;
   --good:#4cc364;--good-bg:#1b3523;--bad:#ff6b63;--bad-bg:#3a1f1e;--warn:#f2b53a;--new-bg:#2a2616;--shadow:none}
 *{box-sizing:border-box}
@@ -62,7 +62,21 @@ input:focus{border-color:var(--acc)}
 .rx{color:var(--rx-line)}.tx{color:var(--tx-line)}
 .mut{color:var(--mut)}.nowrap{white-space:nowrap}
 .cc{display:inline-block;min-width:22px;text-align:center;font-size:10px;font-weight:700;border-radius:4px;padding:1px 4px;background:var(--panel);border:1px solid var(--line);color:var(--mut)}
-.av{width:22px;height:22px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:11px;flex:none}
+.av{width:22px;height:22px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:11px;flex:none;position:relative;overflow:hidden}
+.av img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:var(--card);padding:1px}
+.flag{width:20px;height:15px;border-radius:2px;box-shadow:0 0 0 1px var(--line);object-fit:cover;display:inline-block;vertical-align:-3px}
+/* world map */
+#mapView{flex:1;min-height:0;position:relative;background:var(--chart);display:none;overflow:hidden;cursor:grab;user-select:none}
+#mapView.drag{cursor:grabbing}
+#mapView>svg{position:absolute;inset:0;width:100%;height:100%}
+#mapView path{fill:var(--land);stroke:var(--chart);stroke-width:.6;vector-effect:non-scaling-stroke}
+#mapView path.hot{fill:var(--rx)}
+#mapView path:hover{stroke:var(--fg);stroke-width:1.2}
+#mapTip{position:absolute;pointer-events:none;background:var(--card);border:1px solid var(--line);box-shadow:0 4px 14px rgba(0,0,0,.18);border-radius:8px;padding:8px 10px;display:none;z-index:5;min-width:150px}
+#mapNote{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 22px;text-align:center;max-width:380px;box-shadow:0 6px 24px rgba(0,0,0,.18);display:none;z-index:4}
+#mapNote p{margin:0 0 12px}
+#mapLegend{position:absolute;left:14px;bottom:12px;color:var(--mut);display:flex;align-items:center;gap:8px;font-size:11px;pointer-events:none}
+#mapLegend i{display:block;width:90px;height:8px;border-radius:4px;background:linear-gradient(90deg,color-mix(in srgb,var(--rx) 30%,var(--land)),var(--rx))}
 /* traffic graph */
 #graphView{flex:1;min-height:0;position:relative;background:var(--chart);margin:0}
 #cv{position:absolute;inset:0;width:100%;height:100%}
@@ -154,6 +168,7 @@ canvas.spark{width:80px;height:22px;display:block}
       <select class="pill" id="rangeSel"></select>
     </div>
     <div id="graphView"><div id="ymax"></div><canvas id="cv"></canvas><div id="tip"></div></div>
+    <div id="mapView"></div>
     <div id="splitView"><div class="cols" id="cols"></div></div>
     <div id="summary">
       <div class="sumrow">
@@ -228,6 +243,7 @@ const ICON={
  network:'<svg viewBox="0 0 24 24"><circle cx="5" cy="6" r="2.2"/><circle cx="19" cy="9" r="2.2"/><circle cx="9" cy="18" r="2.2"/><path d="m7 7 10 1.5M6.2 8 8.2 16M17.6 10.8 10.6 17"/></svg>',
  system:'<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9.5" y="9.5" width="5" height="5"/><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"/></svg>',
  gear:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>',
+ map:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>',
  graph:'<svg viewBox="0 0 24 24"><path d="M2 14c2 0 2-7 4-7s2 9 4 9 2-5 4-5 2 4 4 4 2-3 4-3"/></svg>',
  split:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M9 5v14M15 5v14"/></svg>',
  chev:'<svg width="10" height="10" viewBox="0 0 10 10"><path d="m3 1 4 4-4 4" stroke="currentColor" fill="none" stroke-width="1.6"/></svg>'
@@ -252,8 +268,8 @@ if(!['traffic','firewall','alerts','network','system','settings'].includes(S.tab
 function fmtB(b){const u=['B','KB','MB','GB','TB'];let i=0;b=+b||0;while(b>=1024&&i<4){b/=1024;i++}return (i?b.toFixed(b<10?2:1):b.toFixed(0))+' '+u[i]}
 const fmtR=b=>fmtB(b)+'/s';
 function hue(s){let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))>>>0;return h%360}
-const avatar=n=>`<span class="av" style="background:hsl(${hue(n)} 55% 48%)">${esc((n||'?').replace(/^pid /,'#')[0].toUpperCase())}</span>`;
-const cc=c=>c?`<span class="cc" title="${esc(cname(c))}">${esc(c)}</span>`:'';
+const avatar=(n,exe)=>{const src=exe?`/api/icon?exe=${encodeURIComponent(exe)}`:`/api/icon?app=${encodeURIComponent(n||'')}`;return `<span class="av" style="background:hsl(${hue(n||'?')} 55% 48%)">${esc((n||'?').replace(/^pid /,'#')[0].toUpperCase())}<img src="${src}" alt="" loading="lazy" onerror="this.remove()"></span>`};
+const cc=c=>c?`<img class="flag" src="/flags/${esc(c.toLowerCase())}.png" title="${esc(cname(c))}" alt="${esc(c)}" onerror="this.outerHTML='&lt;span class=&quot;cc&quot;&gt;${esc(c)}&lt;/span&gt;'">`:'';
 function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.display='none',3200)}
 function confirmBox(msg){return new Promise(r=>{$('#modalMsg').textContent=msg;$('#modal').style.display='flex';const done=v=>{$('#modal').style.display='none';r(v)};$('#mYes').onclick=()=>done(true);$('#mNo').onclick=()=>done(false)})}
 async function get(p){const r=await fetch(p,{cache:'no-store'});return r.json()}
@@ -264,7 +280,7 @@ const nice=v=>{const e=Math.pow(10,Math.floor(Math.log10(Math.max(v,1))));for(co
 const TABS=[['traffic','Traffic','Monitor'],['firewall','Firewall','Protect'],['alerts','Alerts','Log'],['network','Network','Scanner'],['system','System','Resources']];
 $('#nav').innerHTML=TABS.map(([k,a,b])=>`<button data-tab="${k}">${ICON[k]}<span>${a}<br>${b}</span>${k==='alerts'?'<i class="badge" id="badge"></i>':''}</button>`).join('');
 $('#gear').innerHTML=ICON.gear;
-$('#viewSeg').innerHTML=`<button data-view="graph" title="Graph">${ICON.graph}</button><button data-view="split" title="Apps, hosts, traffic types">${ICON.split}</button>`;
+$('#viewSeg').innerHTML=`<button data-view="graph" title="Graph">${ICON.graph}</button><button data-view="split" title="Apps, hosts, traffic types">${ICON.split}</button><button data-view="map" title="World map">${ICON.map}</button>`;
 $('#rangeSel').innerHTML=RANGES.map(([v,n])=>`<option value="${v}">${n}</option>`).join('');
 function show(t){S.tab=t;localStorage.cwTab=t;document.querySelectorAll('.tab').forEach(e=>e.classList.toggle('on',e.id==='t-'+t));
  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));$('#gear').classList.toggle('on',t==='settings');
@@ -272,7 +288,7 @@ function show(t){S.tab=t;localStorage.cwTab=t;document.querySelectorAll('.tab').
 document.addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b)show(b.dataset.tab);const v=e.target.closest('[data-view]');if(v){S.view=v.dataset.view;localStorage.cwView=S.view;applyView();poll(true)}});
 $('#gear').onclick=()=>show('settings');
 $('#rangeSel').value=S.range;$('#rangeSel').onchange=e=>{S.range=+e.target.value;localStorage.cwRange=S.range;poll(true)};
-function applyView(){document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.toggle('on',b.dataset.view===S.view));$('#graphView').style.display=S.view==='graph'?'block':'none';$('#splitView').style.display=S.view==='split'?'block':'none'}
+function applyView(){if(!['graph','split','map'].includes(S.view))S.view='graph';document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.toggle('on',b.dataset.view===S.view));$('#graphView').style.display=S.view==='graph'?'block':'none';$('#splitView').style.display=S.view==='split'?'block':'none';$('#mapView').style.display=S.view==='map'?'block':'none'}
 $('#elevate').onclick=async()=>{const r=await post('/api/elevate');toast(r.ok?'Restarting with administrator rights…':(r.error||'Failed'))};
 
 /* ---------- chart helpers ---------- */
@@ -316,15 +332,46 @@ function renderBreakdown(){const b=S.bd;if(!b||S.tab!=='traffic'||S.view!=='spli
  const mx=a=>Math.max(1,...a.map(i=>i.rx+i.tx));
  const col=(title,items,fn,note,foot)=>{const m=mx(items);return `<div class="col"><h3>${title}</h3>${items.length?items.map(i=>`<div class="row">${fn(i)}<span class="nowrap mut">${fmtB(i.rx+i.tx)}</span><div class="meter"><i class="a" style="width:${i.rx/m*100}%"></i><i class="b" style="width:${i.tx/m*100}%"></i></div></div>`).join(''):`<div class="empty">${note||'No data yet'}</div>`}${foot&&items.length?`<div class="empty">${foot}</div>`:''}</div>`};
  const noflow=b.flows_available?'':'Needs administrator rights';
- const countries=b.countries.slice();if(b.local.rx+b.local.tx>0)countries.push({code:null,name:'Local Network',rx:b.local.rx,tx:b.local.tx});
+ const countries=b.countries.slice(0,15);if(b.local.rx+b.local.tx>0)countries.push({code:null,name:'Local Network',rx:b.local.rx,tx:b.local.tx});
  $('#cols').innerHTML=col('Apps',b.apps,i=>`${avatar(i.name)}<span class="nm" title="${esc(i.name)}">${esc(i.name)}</span>`,noflow)
   +col('Hosts',b.hosts,i=>`${cc(i.country)||avatar(i.app||'?')}<span class="nm" title="${esc(i.name)} — ${esc(i.app)}">${esc(i.name)}</span>`,noflow)
   +col('Traffic Type',b.types,i=>`<span></span><span class="nm">${esc(i.name)}</span>`,noflow)
   +col('Countries',countries,i=>`${cc(i.code)||'<span></span>'}<span class="nm">${esc(i.name||cname(i.code))}</span>`,!b.flows_available?noflow:(b.geo?'No data yet':'Download the country database in Settings'),!b.geo&&b.flows_available?'Download the country database in Settings to see countries':'')}
 async function pollTraffic(){const jobs=[get('/api/overview?range='+S.range).then(d=>{S.ov=d;renderSummary();drawTraffic()})];
- if(S.view==='split')jobs.push(get('/api/breakdown?range='+S.range).then(d=>{S.bd=d;renderBreakdown()}));
+ if(S.view==='split'||S.view==='map')jobs.push(get('/api/breakdown?range='+S.range).then(d=>{S.bd=d;renderBreakdown();renderMap()}));
  if(!S.miniAt||Date.now()-S.miniAt>30000){S.miniAt=Date.now();jobs.push(get('/api/overview?range=86400').then(d=>{S.mini=d;drawMini()}))}
  await Promise.all(jobs);drawMini()}
+
+/* ---------- world map ---------- */
+const MAP={ready:null,vb:[0,0,1000,500],svg:null};
+function mapApply(){MAP.svg.setAttribute('viewBox',MAP.vb.join(' '));const k=MAP.vb[2]/1000;MAP.svg.querySelectorAll('#mapDots circle').forEach(c=>c.setAttribute('r',(c.dataset.r*Math.sqrt(k)).toFixed(2)))}
+function mapPoint(e){const p=MAP.svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;return p.matrixTransform(MAP.svg.getScreenCTM().inverse())}
+function mapClamp(){let[x,y,w,h]=MAP.vb;w=Math.min(1000,Math.max(60,w));h=w/2;x=Math.min(1000-w,Math.max(0,x));y=Math.min(500-h,Math.max(0,y));MAP.vb=[x,y,w,h]}
+function ensureMap(){if(MAP.ready)return MAP.ready;const box=$('#mapView');
+ MAP.ready=fetch('/world.svg').then(r=>r.text()).then(t=>{box.innerHTML=t+'<div id="mapTip"></div><div id="mapNote"></div><div id="mapLegend">Less<i></i>More</div><button class="pill" id="mapReset" style="position:absolute;right:14px;top:12px">Reset view</button>';
+  MAP.svg=box.querySelector('svg');MAP.svg.setAttribute('preserveAspectRatio','xMidYMid meet');
+  box.addEventListener('wheel',e=>{e.preventDefault();const f=e.deltaY<0?.8:1.25,p=mapPoint(e),[x,y,w,h]=MAP.vb,nw=Math.min(1000,Math.max(60,w*f)),k=nw/w;MAP.vb=[p.x-(p.x-x)*k,p.y-(p.y-y)*k,nw,nw/2];mapClamp();mapApply()},{passive:false});
+  let drag=null;box.addEventListener('mousedown',e=>{if(e.target.closest('button'))return;drag={x:e.clientX,y:e.clientY,vb:MAP.vb.slice()};box.classList.add('drag')});
+  addEventListener('mouseup',()=>{drag=null;box.classList.remove('drag')});
+  box.addEventListener('mousemove',e=>{const tip=$('#mapTip');
+   if(drag){const r=MAP.svg.getBoundingClientRect(),sc=Math.min(r.width/drag.vb[2],r.height/drag.vb[3]);MAP.vb=[drag.vb[0]-(e.clientX-drag.x)/sc,drag.vb[1]-(e.clientY-drag.y)/sc,drag.vb[2],drag.vb[3]];mapClamp();mapApply();tip.style.display='none';return}
+   const p=e.target.closest&&e.target.closest('path');if(!p){tip.style.display='none';return}
+   const code=p.dataset.cc,c=S.bd&&S.bd.countries.find(c=>c.code===code),name=p.dataset.n||cname(code);
+   tip.innerHTML=`<div>${cc(code)} <b>${esc(name)}</b></div>`+(c?`<div class="rx">▼ ${fmtB(c.rx)}</div><div class="tx">▲ ${fmtB(c.tx)}</div>${c.apps.length?`<div class="mut" style="margin-top:4px">${c.apps.map(esc).join(', ')}</div>`:''}`:'<div class="mut">No traffic</div>');
+   const r=box.getBoundingClientRect();tip.style.display='block';tip.style.left=Math.min(e.clientX-r.left+14,r.width-200)+'px';tip.style.top=Math.min(e.clientY-r.top+14,r.height-110)+'px'});
+  box.addEventListener('mouseleave',()=>$('#mapTip').style.display='none');
+  $('#mapReset').onclick=()=>{MAP.vb=[0,0,1000,500];mapApply()}})
+ return MAP.ready}
+function renderMap(){if(S.tab!=='traffic'||S.view!=='map'||!S.bd)return;ensureMap().then(()=>{const b=S.bd,by=new Map(b.countries.map(c=>[c.code,c])),mx=Math.max(1,...b.countries.map(c=>c.rx+c.tx));
+ MAP.svg.querySelectorAll('path').forEach(p=>{const c=by.get(p.dataset.cc);if(c){p.classList.add('hot');p.style.fillOpacity=(.3+.7*Math.log1p(c.rx+c.tx)/Math.log1p(mx)).toFixed(2)}else{p.classList.remove('hot');p.style.fillOpacity=''}});
+ let g=MAP.svg.querySelector('#mapDots');if(!g){g=document.createElementNS('http://www.w3.org/2000/svg','g');g.id='mapDots';g.style.pointerEvents='none';MAP.svg.appendChild(g)}
+ g.innerHTML=[...MAP.svg.querySelectorAll('path.hot')].map(p=>{const c=by.get(p.dataset.cc),r=3+7*Math.log1p(c.rx+c.tx)/Math.log1p(mx);return `<circle cx="${p.dataset.cx}" cy="${p.dataset.cy}" data-r="${r.toFixed(1)}" fill="${css('--tx')}" fill-opacity=".85" stroke="#fff" stroke-width="1" vector-effect="non-scaling-stroke"/>`}).join('');mapApply();
+ const note=$('#mapNote');let msg='',btn='';
+ if(!b.flows_available)msg='Per-country traffic needs administrator rights.';
+ else if(!b.geo){msg='The country database is not installed. Download the free DB-IP Lite database to see where your traffic goes.';btn='<button class="pill primary" id="mapGeo">Download country database</button>'}
+ else if(!b.countries.length)msg='No traffic to remote countries in this period yet.';
+ note.style.display=msg?'block':'none';note.innerHTML=msg?`<p>${msg}</p>${btn}`:'';$('#mapLegend').style.display=msg?'none':'flex'})}
+document.addEventListener('click',async e=>{if(e.target.id==='mapGeo'){const t=e.target;t.disabled=true;t.textContent='Downloading…';const r=await post('/api/geo/download');toast(r.ok?'Country database installed':(r.error||'Download failed'));await pollMeta();poll(true)}});
 
 /* ---------- firewall ---------- */
 async function fwSet(app,dir,blocked){if(app.protected&&blocked&&!await confirmBox(`${app.name} is part of Windows or ConWatch. Blocking it can break your system. Block anyway?`))return;
@@ -337,7 +384,7 @@ function renderFw(){const f=S.fw;if(!f)return;$('#fwState').textContent=f.can_bl
   const id=esc(a.exe||a.name),open=S.open.has(a.exe||a.name),dis=(!a.exe||!f.can_block)?'disabled':'';
   const first=a.hosts[0],more=a.hosts.length-1;
   html+=`<tr><td><input type="checkbox" data-sel="${id}" ${S.sel.has(a.exe)?'checked':''} ${a.exe?'':'disabled'}></td>
-   <td><div class="app"><button class="chev ${open?'open':''}" data-open="${id}">${ICON.chev}</button>${avatar(a.name)}<span title="${esc(a.exe)}">${esc(a.name)}</span></div></td>
+   <td><div class="app"><button class="chev ${open?'open':''}" data-open="${id}">${ICON.chev}</button>${avatar(a.name,a.exe)}<span title="${esc(a.exe)}">${esc(a.name)}</span></div></td>
    <td><button class="fw ${a.in_blocked?'no':'ok'}" ${dis} data-fw="in" data-id="${id}">${a.in_blocked?'Blocked':'Allowed'}</button></td>
    <td><button class="fw ${a.out_blocked?'no':'ok'}" ${dis} data-fw="out" data-id="${id}">${a.out_blocked?'Blocked':'Allowed'}</button></td>
    <td class="nowrap">${first?`${cc(first.country)} ${esc(first.name)}`:'<span class="mut">—</span>'}${more>0?`<span class="more">+${more} more</span>`:''}</td>

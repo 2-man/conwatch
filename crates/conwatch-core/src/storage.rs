@@ -66,6 +66,7 @@ impl Storage {
                  minute INTEGER NOT NULL, app TEXT NOT NULL, ip TEXT NOT NULL, port INTEGER NOT NULL, udp INTEGER NOT NULL,
                  rx INTEGER NOT NULL, tx INTEGER NOT NULL, lan INTEGER NOT NULL,
                  PRIMARY KEY(minute, app, ip, port, udp));
+             CREATE TABLE IF NOT EXISTS app_exes(app TEXT PRIMARY KEY, exe TEXT NOT NULL);
              CREATE TABLE IF NOT EXISTS known_apps(app TEXT PRIMARY KEY, first_seen INTEGER NOT NULL);
              CREATE TABLE IF NOT EXISTS devices(mac TEXT PRIMARY KEY, ip TEXT NOT NULL, first_seen INTEGER NOT NULL, last_seen INTEGER NOT NULL);
              CREATE TABLE IF NOT EXISTS alerts(ts INTEGER NOT NULL, level TEXT NOT NULL, source TEXT NOT NULL, message TEXT NOT NULL);",
@@ -102,6 +103,28 @@ impl Storage {
             .execute("INSERT OR IGNORE INTO known_apps VALUES(?,?)", params![app.to_lowercase(), now_secs()])
             .map(|n| n == 1)
             .unwrap_or(false)
+    }
+
+    // ---- application executables --------------------------------------------
+
+    /// Remember which executable a process name belongs to (lower-cased name).
+    pub fn set_exes(&self, pairs: &[(String, String)]) -> Result<(), String> {
+        if pairs.is_empty() {
+            return Ok(());
+        }
+        self.db.execute_batch("BEGIN").map_err(|e| e.to_string())?;
+        for (app, exe) in pairs {
+            let _ = self.db.execute("INSERT OR REPLACE INTO app_exes VALUES(?,?)", params![app.to_lowercase(), exe]);
+        }
+        self.db.execute_batch("COMMIT").map_err(|e| e.to_string())
+    }
+
+    pub fn exe_of(&self, app: &str) -> Option<String> {
+        self.db.query_row("SELECT exe FROM app_exes WHERE app=?", [app.to_lowercase()], |r| r.get(0)).ok()
+    }
+
+    pub fn exe_known(&self, exe: &str) -> bool {
+        self.db.query_row("SELECT 1 FROM app_exes WHERE exe=? LIMIT 1", [exe], |r| r.get::<_, i64>(0)).is_ok()
     }
 
     // ---- flows --------------------------------------------------------------
@@ -327,6 +350,9 @@ mod tests {
         let s = Storage::open_memory().unwrap();
         assert!(s.mark_known("C:\\A.exe"));
         assert!(!s.mark_known("c:\\a.exe"));
+        s.set_exes(&[("A.exe".into(), "C:\\x\\A.exe".into())]).unwrap();
+        assert_eq!(s.exe_of("a.EXE").as_deref(), Some("C:\\x\\A.exe"));
+        assert!(s.exe_known("C:\\x\\A.exe") && !s.exe_known("C:\\nope.exe"));
         assert!(s.upsert_device("aa:bb", "1.2.3.4"));
         assert!(!s.upsert_device("aa:bb", "1.2.3.5"));
         assert_eq!(s.devices().unwrap()[0].ip, "1.2.3.5");

@@ -22,8 +22,8 @@ toml = "0.8"
 
 [features]
 # Experimental Windows Filtering Platform blocking (unverified, needs Administrator).
-wfp = ["dep:windows"]
+wfp = []
 
 [target.'cfg(windows)'.dependencies]
 ferrisetw = "1.2"
-windows = { version = "0.58", optional = true, features = ["Win32_Foundation", "Win32_NetworkManagement_WindowsFilteringPlatform", "Win32_System_Rpc", "Win32_Security", "Win32_Networking_WinSock", "Win32_NetworkManagement_IpHelper"] }
+windows = { version = "0.58", features = ["Win32_Foundation", "Win32_NetworkManagement_WindowsFilteringPlatform", "Win32_System_Rpc", "Win32_Security", "Win32_Networking_WinSock", "Win32_NetworkManagement_IpHelper", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging", "Win32_Graphics_Gdi", "Win32_Storage_FileSystem"] }

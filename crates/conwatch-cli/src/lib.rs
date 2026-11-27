@@ -1,4 +1,5 @@
 //! ConWatch application library: dashboard server and engine assembly.
+pub mod flags;
 pub mod serve;
 
 use conwatch_core::builtin::{NewAppAlert, NewDeviceAlert, SpikeAlert};

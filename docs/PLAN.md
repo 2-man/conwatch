@@ -77,7 +77,7 @@ Wbudowane moduły w Rust implementują ten sam trait `Module` bez procesu.
 Wzorzec: GlassWire (oglądany lokalnie). Zrobione: nawigacja z 5 zakładkami, wykres z gładkimi obszarami, widok podzielony (Apps/Hosts/Traffic Type/Countries),
 licznik + WAN/LAN + przegląd 24 h, firewall z In/Out per aplikacja, log alertów z „NEW”, skaner sieci z producentami (IEEE OUI), zasoby systemu, ustawienia.
 Dane per połączenie pochodzą z ETW (adres i port zdalny), kraje z opcjonalnej bazy DB-IP Lite (pobierana na żądanie).
-Brak: mapa świata, ikony aplikacji, GPU, interaktywny suwak przeglądu, profile firewalla, VirusTotal.
+Dodane później: mapa świata (Natural Earth), ikony aplikacji z plików .exe (WinAPI), flagi krajów. Brak: GPU, interaktywny suwak przeglądu, profile firewalla, VirusTotal, ikony na macOS.
 
 ## Ryzyka
 

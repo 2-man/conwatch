@@ -3,6 +3,7 @@
 use crate::{build_engine, data_dir};
 use conwatch_core::event::{Alert, AlertLevel, Event};
 use conwatch_core::firewall::{self, Blocked, Dir};
+use conwatch_core::icons;
 use conwatch_core::lan::{self, LanScanner};
 use conwatch_core::monitor::ConnectionMonitor;
 use conwatch_core::procnet::{self, ProcCounters};
@@ -21,6 +22,7 @@ use std::{thread, time::Duration};
 use tiny_http::{Header, Method, Request, Response, Server};
 
 const INDEX: &str = include_str!("../ui/index.html");
+const WORLD_SVG: &str = include_str!("../ui/world.svg");
 
 #[derive(Default)]
 struct State {
@@ -45,6 +47,8 @@ struct State {
     module_errors: Vec<String>,
     /// Events produced outside the collector loop (e.g. by a manual scan).
     extra: Vec<Event>,
+    /// PNG icons by lower-case exe path (None = extraction failed; do not retry).
+    icons: HashMap<String, Option<Arc<Vec<u8>>>>,
 }
 
 type Shared = Arc<Mutex<State>>;
@@ -264,6 +268,7 @@ fn collector(state: Shared, store: Store) {
         }
         s.spark.retain(|_, h| h.iter().any(|v| *v > 0));
         s.app_rates = rates;
+        let pairs: Vec<(String, String)> = if tick % 20 == 5 { s.exe_by_app.iter().map(|(a, e)| (a.clone(), e.clone())).collect() } else { Vec::new() };
 
         if tick % 2 == 0 {
             if let Ok(mut c) = mon.snapshot() {
@@ -284,6 +289,7 @@ fn collector(state: Shared, store: Store) {
             s.blocked = b;
         }
         drop(s);
+        let _ = store.lock().unwrap().set_exes(&pairs);
         tick += 1;
     }
 }
@@ -319,6 +325,12 @@ fn json_resp(v: Value, code: u16) -> Response<std::io::Cursor<Vec<u8>>> {
         .with_status_code(code)
         .with_header(Header::from_bytes("Content-Type", "application/json").unwrap())
         .with_header(Header::from_bytes("Cache-Control", "no-store").unwrap())
+}
+
+fn bytes_resp(data: Vec<u8>, mime: &str, cache: &str) -> Response<std::io::Cursor<Vec<u8>>> {
+    Response::from_data(data)
+        .with_header(Header::from_bytes("Content-Type", mime).unwrap())
+        .with_header(Header::from_bytes("Cache-Control", cache).unwrap())
 }
 
 fn query(url: &str) -> HashMap<String, String> {
@@ -421,6 +433,49 @@ fn handle(mut req: Request, state: &Shared, store: &Store) {
             let _ = req.respond(r);
             return;
         }
+        (Method::Get, "/world.svg") => bytes_resp(WORLD_SVG.as_bytes().to_vec(), "image/svg+xml", "public, max-age=86400"),
+        (Method::Get, p) if p.starts_with("/flags/") && p.ends_with(".png") => {
+            let code = p["/flags/".len()..p.len() - 4].to_lowercase();
+            match (code.len() == 2 && code.bytes().all(|b| b.is_ascii_lowercase()))
+                .then(|| crate::flags::flag(&code))
+                .flatten()
+            {
+                Some(png) => bytes_resp(png.to_vec(), "image/png", "public, max-age=86400"),
+                None => json_resp(json!({"error": "no such flag"}), 404),
+            }
+        }
+        (Method::Get, "/api/icon") => {
+            // Resolve to an executable we already know about (never an arbitrary path from the URL).
+            let exe: Option<String> = if let Some(app) = q.get("app") {
+                let key = app.to_lowercase();
+                let mem = state.lock().unwrap().exe_by_app.get(&key).cloned();
+                mem.or_else(|| store.lock().unwrap().exe_of(&key))
+            } else if let Some(exe) = q.get("exe") {
+                let in_rules = state.lock().unwrap().blocked.iter().any(|b| b.exe.eq_ignore_ascii_case(exe));
+                (in_rules || store.lock().unwrap().exe_known(exe)).then(|| exe.clone())
+            } else {
+                None
+            };
+            match exe {
+                None => json_resp(json!({"error": "unknown application"}), 404),
+                Some(exe) => {
+                    let key = exe.to_lowercase();
+                    let cached = state.lock().unwrap().icons.get(&key).cloned();
+                    let png = match cached {
+                        Some(v) => v,
+                        None => {
+                            let v = icons::exe_icon_png(&exe).map(Arc::new);
+                            state.lock().unwrap().icons.insert(key, v.clone());
+                            v
+                        }
+                    };
+                    match png {
+                        Some(p) => bytes_resp(p.as_ref().clone(), "image/png", "public, max-age=600"),
+                        None => json_resp(json!({"error": "no icon"}), 404),
+                    }
+                }
+            }
+        }
         (Method::Get, "/api/meta") => {
             let unread = store.lock().unwrap().unread_alerts();
             let s = state.lock().unwrap();
@@ -466,6 +521,7 @@ fn handle(mut req: Request, state: &Shared, store: &Store) {
             let apps: Vec<Value> = st.app_usage_since(since, 15).unwrap_or_default().into_iter().map(|(a, r, x)| json!({"name": a, "rx": r, "tx": x})).collect();
             let all_hosts = st.host_usage_since(since, 3000).unwrap_or_default();
             let mut countries: HashMap<String, (u64, u64)> = HashMap::new();
+            let mut country_apps: HashMap<String, HashMap<String, u64>> = HashMap::new();
             let mut hosts = Vec::new();
             for h in &all_hosts {
                 let ip: Option<IpAddr> = h.ip.parse().ok();
@@ -474,6 +530,7 @@ fn handle(mut req: Request, state: &Shared, store: &Store) {
                     let e = countries.entry(cc.clone()).or_insert((0, 0));
                     e.0 += h.rx;
                     e.1 += h.tx;
+                    *country_apps.entry(cc.clone()).or_default().entry(h.top_app.clone()).or_insert(0) += h.rx + h.tx;
                 }
                 if hosts.len() < 25 {
                     let name = ip.and_then(|ip| s.resolver.lookup(ip));
@@ -495,7 +552,11 @@ fn handle(mut req: Request, state: &Shared, store: &Store) {
                 json!({
                     "apps": apps, "hosts": hosts,
                     "types": types.iter().take(15).map(|(n, (r, x))| json!({"name": n, "rx": r, "tx": x})).collect::<Vec<_>>(),
-                    "countries": countries.iter().take(15).map(|(c, (r, x))| json!({"code": c, "rx": r, "tx": x})).collect::<Vec<_>>(),
+                    "countries": countries.iter().map(|(c, (r, x))| {
+                        let mut apps: Vec<(&String, &u64)> = country_apps.get(c).map(|m| m.iter().collect()).unwrap_or_default();
+                        apps.sort_by_key(|(_, b)| std::cmp::Reverse(**b));
+                        json!({"code": c, "rx": r, "tx": x, "apps": apps.iter().take(3).map(|(a, _)| a).collect::<Vec<_>>()})
+                    }).collect::<Vec<_>>(),
                     "local": {"rx": lan.0, "tx": lan.1},
                     "flows_available": s.procnet_error.is_none(),
                     "geo": s.geo.is_some(),
