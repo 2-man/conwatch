@@ -52,6 +52,10 @@ Każda linia to obiekt z polem `type`:
 
 Pamiętaj o `flush` po każdej linii. Przykład: [`modules/example-telnet-alert`](../modules/example-telnet-alert).
 
+## SDK
+
+Jednoplikowe SDK bez zależności: [`sdk/python/conwatch_sdk.py`](../sdk/python/conwatch_sdk.py) i [`sdk/node/conwatch-sdk.js`](../sdk/node/conwatch-sdk.js) – rejestrujesz handlery `on("typ")` i wołasz `alert()`.
+
 ## Moduły wbudowane (Rust)
 
 Implementują trait `conwatch_core::Module` (`name`, `on_event(&Event, &mut Context)`),

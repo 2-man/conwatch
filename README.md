@@ -17,6 +17,9 @@ wysyła. Modułowy – użytkownicy mogą pisać własne moduły.
 - **Moduły użytkownika** w dowolnym języku – zob. [docs/MODULES.md](docs/MODULES.md).
 - Historia w SQLite (`%LOCALAPPDATA%\ConWatch\conwatch.db`, retencja 90 dni).
 
+- **Ustawienia** (motyw, retencja, próg alertu skoku, alerty o nowych aplikacjach), reverse DNS w zakładce Connections oraz opcjonalnie kraje (wrzuć `GeoLite2-Country.mmdb` do `%LOCALAPPDATA%\ConWatch`).
+- **SDK modułów** w `sdk/` (Python, Node) i skrypt instalatora Inno Setup w `installer/`.
+
 ## Użycie
 
 ```powershell

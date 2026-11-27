@@ -5,6 +5,9 @@ use conwatch_core::event::Event;
 use conwatch_core::lan::LanScanner;
 use conwatch_core::monitor::ConnectionMonitor;
 use conwatch_core::procnet::{self, DeltaTracker, ProcCounters};
+use conwatch_core::resolve::{Geo, HostResolver};
+use conwatch_core::settings::Settings;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use conwatch_core::storage::{now_secs, Storage};
 use conwatch_core::traffic::TrafficSampler;
 use conwatch_core::{firewall, Connection};
@@ -25,6 +28,15 @@ struct State {
     module_errors: Vec<String>,
     /// None = per-app tracking active; Some(reason) = unavailable.
     procnet_error: Option<String>,
+    settings: Settings,
+    spike_bps: Arc<AtomicU64>,
+    new_app_alerts: Arc<AtomicBool>,
+    resolver: HostResolver,
+    geo: Option<Geo>,
+}
+
+fn settings_path() -> std::path::PathBuf {
+    data_dir().join("settings.json")
 }
 
 /// Bind the dashboard, start background collection and serving threads, return immediately.
@@ -33,6 +45,13 @@ pub fn start(port: u16) -> Result<String, String> {
     let db_path = data_dir().join("conwatch.db");
     let store = Arc::new(Mutex::new(Storage::open(&db_path)?));
     let state = Arc::new(Mutex::new(State::default()));
+    {
+        let mut s = state.lock().unwrap();
+        s.settings = Settings::load(&settings_path());
+        s.spike_bps.store(s.settings.spike_mb_s as u64 * 1024 * 1024, Ordering::Relaxed);
+        s.new_app_alerts.store(s.settings.alert_new_apps, Ordering::Relaxed);
+        s.geo = Geo::open(&data_dir().join("GeoLite2-Country.mmdb"));
+    }
     {
         let (state, store) = (state.clone(), store.clone());
         thread::spawn(move || collector(state, store));
@@ -67,7 +86,11 @@ pub fn run(port: u16, open: bool) {
 }
 
 fn collector(state: Arc<Mutex<State>>, store: Arc<Mutex<Storage>>) {
-    let (mut engine, names, errors) = build_engine();
+    let (spike, newapp) = {
+        let s = state.lock().unwrap();
+        (s.spike_bps.clone(), s.new_app_alerts.clone())
+    };
+    let (mut engine, names, errors) = build_engine(spike, newapp);
     {
         let mut s = state.lock().unwrap();
         s.modules = names;
@@ -116,7 +139,8 @@ fn collector(state: Arc<Mutex<State>>, store: Arc<Mutex<Storage>>) {
                 let _ = st.record(ev);
             }
             if tick % 3600 == 0 {
-                let _ = st.prune(90);
+                let days = state.lock().unwrap().settings.retention_days as i64;
+                let _ = st.prune(days);
             }
         }
         let mut s = state.lock().unwrap();
@@ -183,7 +207,16 @@ fn handle(mut req: Request, state: &Arc<Mutex<State>>, store: &Arc<Mutex<Storage
             json_resp(
                 json!({
                     "traffic": s.traffic.iter().map(|(t, r, x)| json!([t, r, x])).collect::<Vec<_>>(),
-                    "connections": s.conns,
+                    "connections": s.conns.iter().map(|c| {
+                        let mut v = serde_json::to_value(c).unwrap_or(Value::Null);
+                        if c.proto == conwatch_core::Proto::Tcp {
+                            v["host"] = json!(s.resolver.lookup(c.remote_addr));
+                            v["country"] = json!(s.geo.as_ref().and_then(|g| g.country(c.remote_addr)));
+                        }
+                        v
+                    }).collect::<Vec<_>>(),
+                    "settings": s.settings,
+                    "geo": s.geo.is_some(),
                     "devices": s.devices.iter().map(|(ip, mac)| json!({"ip": ip, "mac": mac})).collect::<Vec<_>>(),
                     "usage": {"day": day, "week": week, "month": month},
                     "alerts": alerts,
@@ -195,6 +228,26 @@ fn handle(mut req: Request, state: &Arc<Mutex<State>>, store: &Arc<Mutex<Storage
                 }),
                 200,
             )
+        }
+        (Method::Post, "/api/settings") => {
+            let has_hdr = req.headers().iter().any(|h| h.field.equiv("X-ConWatch"));
+            let mut body = String::new();
+            let _ = std::io::Read::read_to_string(&mut req.as_reader().take(4096), &mut body);
+            match (has_hdr, serde_json::from_str::<Settings>(&body)) {
+                (false, _) => json_resp(json!({"error": "forbidden"}), 403),
+                (_, Err(e)) => json_resp(json!({"error": e.to_string()}), 400),
+                (_, Ok(new)) => {
+                    let new = new.sanitized();
+                    let mut s = state.lock().unwrap();
+                    s.spike_bps.store(new.spike_mb_s as u64 * 1024 * 1024, Ordering::Relaxed);
+                    s.new_app_alerts.store(new.alert_new_apps, Ordering::Relaxed);
+                    s.settings = new.clone();
+                    match new.save(&settings_path()) {
+                        Ok(()) => json_resp(json!({"ok": true}), 200),
+                        Err(e) => json_resp(json!({"error": e}), 500),
+                    }
+                }
+            }
         }
         (Method::Post, "/api/block") | (Method::Post, "/api/unblock") => {
             // Custom header forces a CORS preflight, which we never answer: blocks cross-site requests.

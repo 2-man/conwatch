@@ -26,9 +26,17 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: Compress-Archive -Path target/release/conwatch.exe,target/release/conwatch-app.exe,LICENSE,README.md,modules -DestinationPath ${{ matrix.asset }}
+      - name: Installer (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          & "$env:ProgramFiles(x86)\Inno Setup 6\ISCC.exe" installer\conwatch.iss
       - name: Package (macOS)
         if: runner.os == 'macOS'
         run: zip -r ${{ matrix.asset }} target/release/conwatch target/release/conwatch-app LICENSE README.md modules
       - uses: softprops/action-gh-release@v2
         with:
-          files: ${{ matrix.asset }}
+          files: |
+            ${{ matrix.asset }}
+            dist/*.exe

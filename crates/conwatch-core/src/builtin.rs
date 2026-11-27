@@ -2,16 +2,26 @@
 
 use crate::event::{AlertLevel, Event};
 use crate::module::{Context, Module};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::Arc;
 
 /// Warns when an application uses the network for the first time.
-pub struct NewAppAlert;
+pub struct NewAppAlert {
+    pub enabled: Arc<AtomicBool>,
+}
+
+impl Default for NewAppAlert {
+    fn default() -> Self {
+        Self { enabled: Arc::new(AtomicBool::new(true)) }
+    }
+}
 
 impl Module for NewAppAlert {
     fn name(&self) -> &str {
         "new-app-alert"
     }
     fn on_event(&mut self, event: &Event, ctx: &mut Context) {
-        if let Event::AppFirstSeen { process, .. } = event {
+        if let (true, Event::AppFirstSeen { process, .. }) = (self.enabled.load(Ordering::Relaxed), event) {
             ctx.alert(AlertLevel::Warning, self.name(), format!("New application is using the network: {process}"));
         }
     }
@@ -33,12 +43,17 @@ impl Module for NewDeviceAlert {
 
 /// Warns on sustained high download/upload (default threshold 50 MB/s) – a simple spike detector.
 pub struct SpikeAlert {
-    pub threshold_bps: u64,
+    /// Bytes per second; shared so settings can change it at runtime.
+    pub threshold_bps: Arc<AtomicU64>,
     cooling: u32,
 }
 
 impl SpikeAlert {
     pub fn new(threshold_bps: u64) -> Self {
+        Self { threshold_bps: Arc::new(AtomicU64::new(threshold_bps)), cooling: 0 }
+    }
+
+    pub fn shared(threshold_bps: Arc<AtomicU64>) -> Self {
         Self { threshold_bps, cooling: 0 }
     }
 }
@@ -57,7 +72,7 @@ impl Module for SpikeAlert {
         if let Event::TrafficSample { rx_bytes, tx_bytes, interval_ms } = event {
             self.cooling = self.cooling.saturating_sub(1);
             let bps = (rx_bytes + tx_bytes) * 1000 / interval_ms.max(&1);
-            if bps > self.threshold_bps && self.cooling == 0 {
+            if bps > self.threshold_bps.load(Ordering::Relaxed) && self.cooling == 0 {
                 self.cooling = 60;
                 ctx.alert(AlertLevel::Warning, self.name(), format!("Traffic spike: {:.1} MB/s", bps as f64 / 1_048_576.0));
             }

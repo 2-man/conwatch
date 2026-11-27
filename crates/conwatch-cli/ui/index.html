@@ -6,7 +6,9 @@
 <title>ConWatch</title>
 <style>
 :root{--bg:#f4f6f9;--card:#fff;--fg:#1c2530;--mut:#6b7788;--line:#e3e8ef;--acc:#2f7cf6;--rx:#2f7cf6;--tx:#f08a24;--warn:#e0a100;--crit:#d6343a;--ok:#1f9d63}
-@media(prefers-color-scheme:dark){:root{--bg:#10151c;--card:#182029;--fg:#e6ebf2;--mut:#8a97a8;--line:#263140;--acc:#5b9bff;--rx:#5b9bff;--tx:#ffa24a;--warn:#f2c230;--crit:#ff5c63;--ok:#3ccf8e}}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#10151c;--card:#182029;--fg:#e6ebf2;--mut:#8a97a8;--line:#263140;--acc:#5b9bff;--rx:#5b9bff;--tx:#ffa24a;--warn:#f2c230;--crit:#ff5c63;--ok:#3ccf8e}}
+:root[data-theme=dark]{--bg:#10151c;--card:#182029;--fg:#e6ebf2;--mut:#8a97a8;--line:#263140;--acc:#5b9bff;--rx:#5b9bff;--tx:#ffa24a;--warn:#f2c230;--crit:#ff5c63;--ok:#3ccf8e}
+label{display:block;margin:10px 0 4px;color:var(--mut)}input,select{background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font:inherit}
 *{box-sizing:border-box}body{margin:0;font:14px system-ui,Segoe UI,sans-serif;background:var(--bg);color:var(--fg)}
 header{display:flex;align-items:center;gap:24px;padding:12px 24px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0}
 .logo{font-weight:700;font-size:18px;color:var(--acc)}
@@ -36,15 +38,22 @@ button.act{background:var(--bg);border:1px solid var(--line);color:var(--fg);bor
     <div class="grid" id="usageCards"></div>
     <div class="card"><h2>Top applications (last 24 h)</h2><div id="appsNote" class="sub"></div><table><thead><tr><th>Application</th><th>Downloaded</th><th>Uploaded</th></tr></thead><tbody id="appRows"></tbody></table></div>
   </section>
-  <section class="tab" id="conns"><div class="card"><h2>Active connections</h2><table><thead><tr><th>Application</th><th>PID</th><th>Remote</th><th></th></tr></thead><tbody id="connRows"></tbody></table></div></section>
+  <section class="tab" id="conns"><div class="card"><h2>Active connections</h2><table><thead><tr><th>Application</th><th>PID</th><th>Remote</th><th>Host</th><th>Country</th><th></th></tr></thead><tbody id="connRows"></tbody></table></div></section>
   <section class="tab" id="things"><div class="card"><h2>Devices on your network</h2><table><thead><tr><th>IP</th><th>MAC</th></tr></thead><tbody id="devRows"></tbody></table></div></section>
   <section class="tab" id="alerts"><div class="card"><h2>Alerts</h2><table><thead><tr><th>Time</th><th>Level</th><th>Source</th><th>Message</th></tr></thead><tbody id="alertRows"></tbody></table></div></section>
+  <section class="tab" id="settings"><div class="card"><h2>Settings</h2>
+    <label>Theme</label><select id="sTheme"><option value="auto">Automatic</option><option value="light">Light</option><option value="dark">Dark</option></select>
+    <label>Keep history (days)</label><input id="sRet" type="number" min="1" max="3650">
+    <label>Traffic spike alert threshold (MB/s)</label><input id="sSpike" type="number" min="1" max="10000">
+    <label><input id="sNew" type="checkbox"> Alert when a new application uses the network</label>
+    <p><button class="act" id="sSave">Save</button></p>
+    <p class="sub" id="geoNote"></p></div></section>
   <section class="tab" id="fw"><div class="card"><h2>Blocked applications</h2><table><tbody id="fwRows"></tbody></table><p class="sub">Blocking uses Windows Firewall and requires running ConWatch as Administrator.</p></div>
     <div class="card"><h2>Modules</h2><div id="mods"></div></div></section>
 </main>
 <div id="msg"></div>
 <script>
-const TABS={graph:'Graph',usage:'Usage',conns:'Connections',things:'Things',alerts:'Alerts',fw:'Firewall & Modules'};
+const TABS={graph:'Graph',usage:'Usage',conns:'Connections',things:'Things',alerts:'Alerts',fw:'Firewall & Modules',settings:'Settings'};
 const $=id=>document.getElementById(id);let cur=localStorage.tab||'graph',S=null;
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function fmt(b){const u=['B','KB','MB','GB','TB'];let i=0;while(b>=1024&&i<4){b/=1024;i++}return b.toFixed(i?1:0)+' '+u[i]}
@@ -58,17 +67,22 @@ function chart(){const c=$('cv'),d=devicePixelRatio||1,w=c.clientWidth,h=c.clien
  x.strokeStyle=css('--line');x.fillStyle=css('--mut');x.font='11px system-ui';
  for(let i=0;i<=4;i++){const y=Y(max*i/4);x.beginPath();x.moveTo(45,y);x.lineTo(w,y);x.stroke();x.fillText(fmt(max*i/4)+'/s',0,y+4)}
  [[1,'--rx'],[2,'--tx']].forEach(([k,col])=>{x.beginPath();T.forEach((t,i)=>i?x.lineTo(X(i),Y(t[k])):x.moveTo(X(i),Y(t[k])));x.strokeStyle=css(col);x.lineWidth=2;x.stroke();x.lineTo(X(T.length-1),h-18);x.lineTo(X(0),h-18);x.globalAlpha=.12;x.fillStyle=css(col);x.fill();x.globalAlpha=1})}
-function draw(){if(!S)return;const l=S.traffic.at(-1)||[0,0,0];$('rx').textContent=fmt(l[1])+'/s';$('tx').textContent=fmt(l[2])+'/s';
+function blockBtn(msg){const name=msg.split(': ').pop();const c=S.connections.find(c=>c.process===name&&c.exe);return c?` <button class="act" data-exe="${esc(c.exe)}">Block</button>`:''}
+function applyTheme(){const t=S&&S.settings.theme;if(t&&t!=='auto')document.documentElement.dataset.theme=t;else delete document.documentElement.dataset.theme}
+let formFilled=false;
+function fillSettings(){if(formFilled||!S)return;formFilled=true;$('sTheme').value=S.settings.theme;$('sRet').value=S.settings.retention_days;$('sSpike').value=S.settings.spike_mb_s;$('sNew').checked=S.settings.alert_new_apps;$('geoNote').textContent=S.geo?'Country lookup active (GeoLite2-Country.mmdb found).':'Country lookup is off: place GeoLite2-Country.mmdb (free from MaxMind) in %LOCALAPPDATA%\\ConWatch and restart.'}
+function draw(){if(!S)return;applyTheme();fillSettings();const l=S.traffic.at(-1)||[0,0,0];$('rx').textContent=fmt(l[1])+'/s';$('tx').textContent=fmt(l[2])+'/s';
  if(cur==='graph')chart();
  if(cur==='usage')$('usageCards').innerHTML=[['Last 24 hours','day'],['Last 7 days','week'],['Last 30 days','month']].map(([n,k])=>`<div class="card"><div class="sub">${n}</div><div class="big rx">▼ ${fmt(S.usage[k][0])}</div><div class="big tx">▲ ${fmt(S.usage[k][1])}</div></div>`).join('');
  if(cur==='usage'){$('appsNote').textContent=S.apps_error?'Per-application traffic needs Administrator rights: '+S.apps_error:'';
   $('appRows').innerHTML=S.apps.map(a=>`<tr><td>${esc(a.app)}</td><td class="rx">${fmt(a.rx)}</td><td class="tx">${fmt(a.tx)}</td></tr>`).join('')||'<tr><td class="empty" colspan="3">No data yet</td></tr>'}
- if(cur==='conns')$('connRows').innerHTML=S.connections.filter(c=>c.proto==='tcp').map(c=>`<tr><td>${esc(c.process)}</td><td>${c.pid}</td><td>${esc(c.remote_addr)}:${c.remote_port}</td><td>${c.exe?`<button class="act" data-exe="${esc(c.exe)}">Block</button>`:''}</td></tr>`).join('')||'<tr><td class="empty">No connections</td></tr>';
+ if(cur==='conns')$('connRows').innerHTML=S.connections.filter(c=>c.proto==='tcp').map(c=>`<tr><td>${esc(c.process)}</td><td>${c.pid}</td><td>${esc(c.remote_addr)}:${c.remote_port}</td><td>${esc(c.host||'')}</td><td>${esc(c.country||'')}</td><td>${c.exe?`<button class="act" data-exe="${esc(c.exe)}">Block</button>`:''}</td></tr>`).join('')||'<tr><td class="empty">No connections</td></tr>';
  if(cur==='things')$('devRows').innerHTML=S.devices.map(d=>`<tr><td>${esc(d.ip)}</td><td>${esc(d.mac)}</td></tr>`).join('')||'<tr><td class="empty">No devices found</td></tr>';
- if(cur==='alerts')$('alertRows').innerHTML=S.alerts.map(a=>`<tr><td>${new Date(a.ts*1000).toLocaleString()}</td><td class="${a.level}">${a.level}</td><td>${esc(a.source)}</td><td>${esc(a.message)}</td></tr>`).join('')||'<tr><td class="empty">No alerts yet</td></tr>';
+ if(cur==='alerts')$('alertRows').innerHTML=S.alerts.map(a=>`<tr><td>${new Date(a.ts*1000).toLocaleString()}</td><td class="${a.level}">${a.level}</td><td>${esc(a.source)}</td><td>${esc(a.message)}${a.source==='new-app-alert'?blockBtn(a.message):''}</td></tr>`).join('')||'<tr><td class="empty">No alerts yet</td></tr>';
  if(cur==='fw'){$('fwRows').innerHTML=S.blocked.map(b=>`<tr><td>${esc(b)}</td><td><button class="act" data-un="${esc(b)}">Unblock</button></td></tr>`).join('')||'<tr><td class="empty">Nothing blocked</td></tr>';
   $('mods').innerHTML=S.modules.map(m=>`<span class="pill">${esc(m)}</span> `).join('')+S.module_errors.map(e=>`<div class="critical">${esc(e)}</div>`).join('')}}
 document.body.addEventListener('click',e=>{const t=e.target;if(t.dataset.exe&&confirm('Block '+t.dataset.exe+'?'))api('/api/block',t.dataset.exe);if(t.dataset.un)api('/api/unblock',t.dataset.un)});
+$('sSave').onclick=async()=>{const body={theme:$('sTheme').value,retention_days:+$('sRet').value,spike_mb_s:+$('sSpike').value,alert_new_apps:$('sNew').checked};const r=await fetch('/api/settings',{method:'POST',headers:{'X-ConWatch':'1'},body:JSON.stringify(body)});const j=await r.json();toast(j.ok?'Saved':'Error: '+j.error);formFilled=false;refresh()};
 async function refresh(){try{S=await(await fetch('/api/state')).json();draw()}catch(e){}}
 show(cur);refresh();setInterval(refresh,1500);addEventListener('resize',draw);
 </script>

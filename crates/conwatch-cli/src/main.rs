@@ -1,4 +1,4 @@
-use conwatch_cli::{build_engine, serve};
+use conwatch_cli::{default_engine, serve};
 use conwatch_core::event::{Event, Proto};
 use conwatch_core::monitor::ConnectionMonitor;
 use conwatch_core::{firewall, lan::LanScanner};
@@ -41,7 +41,7 @@ fn main() {
             }
         }
         Some("modules") => {
-            let (_e, names, errors) = build_engine();
+            let (_e, names, errors) = default_engine();
             names.iter().for_each(|n| println!("{n}"));
             errors.iter().for_each(|e| eprintln!("error: {e}"));
         }
@@ -78,7 +78,7 @@ fn list() {
 }
 
 fn watch(json: bool) {
-    let (mut engine, _, errors) = build_engine();
+    let (mut engine, _, errors) = default_engine();
     errors.iter().for_each(|e| eprintln!("module error: {e}"));
     let mut mon = ConnectionMonitor::new();
     let mut lan = LanScanner::new();

@@ -9,6 +9,8 @@ pub mod lan;
 pub mod module;
 pub mod monitor;
 pub mod procnet;
+pub mod resolve;
+pub mod settings;
 pub mod storage;
 pub mod traffic;
 
