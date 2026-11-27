@@ -99,7 +99,7 @@ fn watch(json: bool) {
             eprintln!("error: {e}");
             vec![]
         });
-        if tick % 10 == 0 {
+        if tick.is_multiple_of(10) {
             events.extend(lan.poll());
         }
         tick += 1;

@@ -5,6 +5,9 @@ use rusqlite::{params, Connection as Db};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+/// (rx, tx) byte totals.
+pub type Bytes = (u64, u64);
+
 pub struct Storage {
     db: Db,
 }
@@ -199,7 +202,7 @@ impl Storage {
     }
 
     /// ((lan_rx, lan_tx), (wan_rx, wan_tx)) since `since`.
-    pub fn lan_wan_since(&self, since: i64) -> Result<((u64, u64), (u64, u64)), String> {
+    pub fn lan_wan_since(&self, since: i64) -> Result<(Bytes, Bytes), String> {
         let q = |lan: i64| -> Result<(u64, u64), String> {
             self.db
                 .query_row("SELECT COALESCE(SUM(rx),0), COALESCE(SUM(tx),0) FROM flows WHERE minute>=? AND lan=?", params![since, lan], |r| {

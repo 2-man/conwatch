@@ -39,10 +39,9 @@ pub fn parse_rule_line(line: &str) -> Option<(String, bool, bool)> {
         (false, true, p)
     } else if let Some(p) = rest.strip_prefix(" [in]:") {
         (true, false, p)
-    } else if let Some(p) = rest.strip_prefix(':') {
-        (true, true, p)
     } else {
-        return None;
+        let p = rest.strip_prefix(':')?;
+        (true, true, p)
     };
     let path = path.trim();
     (!path.is_empty()).then(|| (path.to_string(), inb, outb))
@@ -60,7 +59,7 @@ pub fn merge_rules(lines: impl Iterator<Item = (String, bool, bool)>) -> Vec<Blo
             None => v.push(Blocked { exe, inbound: i, outbound: o }),
         }
     }
-    v.sort_by(|a, b| a.exe.to_lowercase().cmp(&b.exe.to_lowercase()));
+    v.sort_by_key(|a| a.exe.to_lowercase());
     v
 }
 

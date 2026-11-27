@@ -26,7 +26,7 @@ impl TrafficSampler {
     pub fn sample(&mut self) -> Event {
         self.nets.refresh(true);
         let (mut rx, mut tx) = (0, 0);
-        for (_, n) in self.nets.iter() {
+        for n in self.nets.values() {
             rx += n.received();
             tx += n.transmitted();
         }

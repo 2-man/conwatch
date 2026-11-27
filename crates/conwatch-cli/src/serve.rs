@@ -169,7 +169,7 @@ fn collector(state: Shared, store: Store) {
             });
         }
         events.push(traffic.sample());
-        if tick % 10 == 0 {
+        if tick.is_multiple_of(10) {
             let devs = lan_scanner.devices();
             let st = store.lock().unwrap();
             let mut online = HashSet::new();
@@ -244,7 +244,7 @@ fn collector(state: Shared, store: Store) {
             for ev in &all {
                 let _ = st.record(ev);
             }
-            if tick % 3600 == 0 {
+            if tick.is_multiple_of(3600) {
                 let days = state.lock().unwrap().settings.retention_days as i64;
                 let _ = st.prune(days);
             }
@@ -270,7 +270,7 @@ fn collector(state: Shared, store: Store) {
         s.app_rates = rates;
         let pairs: Vec<(String, String)> = if tick % 20 == 5 { s.exe_by_app.iter().map(|(a, e)| (a.clone(), e.clone())).collect() } else { Vec::new() };
 
-        if tick % 2 == 0 {
+        if tick.is_multiple_of(2) {
             if let Ok(mut c) = mon.snapshot() {
                 c.sort_by_key(|c| c.process.to_lowercase());
                 for c in &c {
@@ -281,7 +281,7 @@ fn collector(state: Shared, store: Store) {
                 s.conns = c;
             }
         }
-        if tick % 30 == 0 {
+        if tick.is_multiple_of(30) {
             // netsh is slow; refresh the cached list rarely (and right after changes).
             drop(s);
             let b = firewall::blocked();
@@ -655,15 +655,24 @@ fn handle(mut req: Request, state: &Shared, store: &Store) {
         (Method::Get, "/api/network") => {
             let devs = store.lock().unwrap().devices().unwrap_or_default();
             let s = state.lock().unwrap();
-            let me = lan::local_ipv4().map(|i| i.to_string());
+            let mut devs = devs;
+            let me: HashSet<String> = lan::local_ifaces().iter().map(|i| i.ip.to_string()).collect();
+            // Show this computer too (it is not in its own ARP cache).
+            let ips: Vec<String> = devs.iter().map(|d| d.ip.clone()).collect();
+            for (ip, mac) in lan::local_devices_for(&ips).into_iter().rev() {
+                if !devs.iter().any(|d| d.mac == mac) {
+                    let now = now_secs();
+                    devs.insert(0, conwatch_core::storage::DeviceRow { mac, ip, first_seen: now, last_seen: now });
+                }
+            }
             let list: Vec<Value> = devs
                 .into_iter()
                 .map(|d| {
                     let v = vendor::vendor(&d.mac);
-                    let is_me = me.as_deref() == Some(d.ip.as_str());
+                    let is_me = me.contains(&d.ip);
                     let gateway = d.ip.ends_with(".1");
                     let kind = if is_me { "computer" } else { vendor::kind(v, gateway) };
-                    json!({"ip": d.ip, "mac": d.mac, "vendor": v, "kind": kind, "me": is_me, "online": s.online.contains(&d.mac), "first_seen": d.first_seen, "last_seen": d.last_seen})
+                    json!({"ip": d.ip, "mac": d.mac, "vendor": v, "kind": kind, "me": is_me, "online": is_me || s.online.contains(&d.mac), "first_seen": d.first_seen, "last_seen": d.last_seen})
                 })
                 .collect();
             json_resp(json!({"devices": list, "scanning": s.scanning, "auto_scan": s.settings.auto_scan}), 200)
@@ -722,7 +731,8 @@ fn elevate() -> Value {
     }
     let Ok(exe) = std::env::current_exe() else { return json!({"error": "cannot locate executable"}) };
     let q = |s: &str| format!("'{}'", s.replace('\'', "''"));
-    let args: Vec<String> = std::env::args().skip(1).map(|a| q(&a)).collect();
+    let mut args: Vec<String> = std::env::args().skip(1).filter(|a| a != "--relaunch").map(|a| q(&a)).collect();
+    args.push(q("--relaunch"));
     let mut cmd = format!("Start-Process -FilePath {} -Verb RunAs", q(&exe.to_string_lossy()));
     if !args.is_empty() {
         cmd.push_str(&format!(" -ArgumentList {}", args.join(",")));

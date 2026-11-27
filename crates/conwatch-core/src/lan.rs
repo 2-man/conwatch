@@ -53,6 +53,48 @@ pub fn local_ipv4() -> Option<Ipv4Addr> {
     }
 }
 
+/// An IPv4 interface of this computer with a real hardware address.
+#[derive(Debug, Clone)]
+pub struct LocalIface {
+    pub ip: Ipv4Addr,
+    pub mac: String,
+}
+
+/// All local IPv4 interfaces (no loopback / link-local / virtual-without-MAC adapters).
+pub fn local_ifaces() -> Vec<LocalIface> {
+    let nets = sysinfo::Networks::new_with_refreshed_list();
+    let mut out = Vec::new();
+    for (_, data) in nets.iter() {
+        let mac = data.mac_address().to_string().to_lowercase();
+        if mac == "00:00:00:00:00:00" {
+            continue;
+        }
+        for n in data.ip_networks() {
+            if let IpAddr::V4(ip) = n.addr {
+                if !ip.is_loopback() && !ip.is_link_local() && !ip.is_unspecified() {
+                    out.push(LocalIface { ip, mac: mac.clone() });
+                }
+            }
+        }
+    }
+    out
+}
+
+fn same_subnet(a: Ipv4Addr, b: Ipv4Addr) -> bool {
+    a.octets()[..3] == b.octets()[..3]
+}
+
+/// Local interfaces that sit in the same /24 as one of the given device addresses
+/// (the ARP cache never lists the host itself, so we add it ourselves).
+pub fn local_devices_for(device_ips: &[String]) -> Vec<(String, String)> {
+    let peers: Vec<Ipv4Addr> = device_ips.iter().filter_map(|i| i.parse().ok()).collect();
+    local_ifaces()
+        .into_iter()
+        .filter(|i| peers.iter().any(|p| *p != i.ip && same_subnet(*p, i.ip)))
+        .map(|i| (i.ip.to_string(), i.mac))
+        .collect()
+}
+
 fn arp_table() -> Vec<(String, String)> {
     let args: &[&str] = if cfg!(windows) { &["-a"] } else { &["-an"] };
     crate::no_window(Command::new("arp").args(args))
@@ -64,28 +106,41 @@ fn arp_table() -> Vec<(String, String)> {
 /// Ping every address of the local /24 (so that the ARP cache is complete), then read the ARP table.
 /// Blocks for a few seconds; call from a background thread.
 pub fn scan() -> Vec<(String, String)> {
-    if let Some(me) = local_ipv4() {
-        let o = me.octets();
-        let hosts: Arc<Mutex<Vec<u8>>> = Arc::new(Mutex::new((1..255u8).filter(|h| *h != o[3]).collect()));
-        let workers: Vec<_> = (0..48)
-            .map(|_| {
-                let hosts = hosts.clone();
-                thread::spawn(move || loop {
-                    let Some(h) = hosts.lock().unwrap().pop() else { break };
-                    let ip = format!("{}.{}.{}.{}", o[0], o[1], o[2], h);
-                    let mut c = Command::new("ping");
-                    if cfg!(windows) {
-                        c.args(["-n", "1", "-w", "300", &ip]);
-                    } else {
-                        c.args(["-c", "1", "-W", "1", &ip]);
-                    }
-                    let _ = crate::no_window(&mut c).stdout(std::process::Stdio::null()).status();
-                })
-            })
-            .collect();
-        for w in workers {
-            let _ = w.join();
+    let mut subnets: Vec<[u8; 3]> = Vec::new();
+    let mut mine: Vec<Ipv4Addr> = Vec::new();
+    for i in local_ifaces() {
+        if i.ip.is_private() {
+            let o = i.ip.octets();
+            if !subnets.contains(&[o[0], o[1], o[2]]) && subnets.len() < 4 {
+                subnets.push([o[0], o[1], o[2]]);
+            }
+            mine.push(i.ip);
         }
+    }
+    let targets: Vec<Ipv4Addr> = subnets
+        .iter()
+        .flat_map(|s| (1..255u8).map(move |h| Ipv4Addr::new(s[0], s[1], s[2], h)))
+        .filter(|ip| !mine.contains(ip))
+        .collect();
+    let queue = Arc::new(Mutex::new(targets));
+    let workers: Vec<_> = (0..48)
+        .map(|_| {
+            let queue = queue.clone();
+            thread::spawn(move || loop {
+                let Some(ip) = queue.lock().unwrap().pop() else { break };
+                let ip = ip.to_string();
+                let mut c = Command::new("ping");
+                if cfg!(windows) {
+                    c.args(["-n", "1", "-w", "300", &ip]);
+                } else {
+                    c.args(["-c", "1", "-W", "1", &ip]);
+                }
+                let _ = crate::no_window(&mut c).stdout(std::process::Stdio::null()).status();
+            })
+        })
+        .collect();
+    for w in workers {
+        let _ = w.join();
     }
     arp_table()
 }

@@ -1,5 +1,5 @@
 ; Inno Setup script. Build: iscc installer\conwatch.iss  (expects target\release\ built first)
-#define AppVersion "0.1.0"
+#define AppVersion "0.2.0"
 
 [Setup]
 AppName=ConWatch

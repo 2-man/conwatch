@@ -47,6 +47,11 @@ cargo run -p conwatch-cli -- block C:\Path\app.exe  # jako Administrator
 Moduł to proces wymieniający zdarzenia JSON po stdio, opisany plikiem `module.toml`.
 Przykład: [`modules/example-telnet-alert`](modules/example-telnet-alert).
 
+## Wydajność
+
+Wykres jest wygładzany (Gauss + krzywe monotoniczne) i płynnie przewijany, a po zamknięciu okna do zasobnika
+program zwalnia widok WebView2 (zostaje ok. 45 MB RAM i zbieranie danych w tle).
+
 ## Dane i zasoby stron trzecich
 
 - Mapa świata: [Natural Earth](https://www.naturalearthdata.com/) 110m (domena publiczna), wygenerowana skryptem `tools/make_assets.py`.
