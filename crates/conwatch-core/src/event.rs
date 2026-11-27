@@ -44,7 +44,13 @@ pub enum Event {
     ConnectionOpened(Connection),
     ConnectionClosed(Connection),
     /// First time this executable name was seen talking to the network.
-    AppFirstSeen { process: String, exe: Option<String> },
+    AppFirstSeen {
+        process: String,
+        exe: Option<String>,
+        /// Remote address of the first connection, if known.
+        #[serde(default)]
+        remote: Option<String>,
+    },
     /// Bytes transferred over all interfaces during the last sampling interval.
     TrafficSample { rx_bytes: u64, tx_bytes: u64, interval_ms: u64 },
     /// A device seen on the local network.

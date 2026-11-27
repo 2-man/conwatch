@@ -7,6 +7,16 @@ wysyła. Modułowy – użytkownicy mogą pisać własne moduły.
 > Status: **wczesny etap (v0.1)**. Działa monitor połączeń per proces w CLI.
 > Pełny plan: [docs/PLAN.md](docs/PLAN.md).
 
+## Wygląd i zakładki (v0.4)
+
+Interfejs wzorowany na koncepcji GlassWire (własna implementacja, bez jego zasobów):
+**Traffic** (wykres z zakresami 5 min – 30 dni, podział na aplikacje / hosty / typy ruchu / kraje, licznik, WAN vs LAN),
+**Firewall** (tabela aplikacji z osobnym przełącznikiem In/Out, hosty, prędkości, wykres, wybór wielu aplikacji),
+**Alerts** (log z grupowaniem po dniach, „NEW”, nieprzeczytane, filtr, szukanie),
+**Network** (skaner LAN z producentami z bazy IEEE OUI, Scan i auto-scan),
+**System** (CPU, pamięć, dysk) oraz **Settings** (motyw jasny/ciemny/auto, retencja, alerty, pobranie bazy krajów).
+Brak jeszcze: widoku mapy świata i ikon aplikacji (zamiast nich kolorowe awatary), GPU w zakładce System.
+
 ## Funkcje (v0.3)
 
 - **Aplikacja desktopowa** (`conwatch-app`): natywne okno + ikona w zasobniku z prędkością na żywo; zamknięcie okna chowa je do zasobnika.

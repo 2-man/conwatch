@@ -62,7 +62,7 @@ mod tests {
     fn module_emitted_events_are_returned() {
         let mut eng = Engine::new();
         eng.register(Box::new(Echo));
-        let out = eng.dispatch(vec![Event::AppFirstSeen { process: "a.exe".into(), exe: None }]);
+        let out = eng.dispatch(vec![Event::AppFirstSeen { process: "a.exe".into(), exe: None, remote: None }]);
         assert_eq!(out.len(), 2);
         assert!(matches!(out[1], Event::Alert(_)));
     }

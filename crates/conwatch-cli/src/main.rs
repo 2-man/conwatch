@@ -52,7 +52,14 @@ fn main() {
         #[cfg(all(windows, feature = "wfp"))]
         Some("wfp-unblock") => report(args.get(1).map(|e| conwatch_core::wfp::unblock_app(e)).unwrap_or(Err("missing <exe-path>".into())), "unblocked (WFP)"),
         Some("autostart") => autostart(args.get(1).map(String::as_str)),
-        Some("blocked") => firewall::blocked().iter().for_each(|b| println!("{b}")),
+        Some("blocked") => firewall::blocked().iter().for_each(|b| {
+            let dirs = match (b.inbound, b.outbound) {
+                (true, true) => "in+out",
+                (true, false) => "in",
+                _ => "out",
+            };
+            println!("{}	{dirs}", b.exe)
+        }),
         _ => usage(),
     }
 }

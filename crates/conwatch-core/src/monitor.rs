@@ -104,6 +104,7 @@ impl ConnectionMonitor {
                     events.push(Event::AppFirstSeen {
                         process: c.process.clone(),
                         exe: c.exe.clone(),
+                        remote: Some(c.remote_addr.to_string()),
                     });
                 }
                 events.push(Event::ConnectionOpened(c));

@@ -5,6 +5,7 @@ pub mod engine;
 pub mod event;
 pub mod external;
 pub mod firewall;
+pub mod geodb;
 pub mod lan;
 pub mod module;
 pub mod monitor;
@@ -12,7 +13,9 @@ pub mod procnet;
 pub mod resolve;
 pub mod settings;
 pub mod storage;
+pub mod system;
 pub mod traffic;
+pub mod vendor;
 #[cfg(all(windows, feature = "wfp"))]
 pub mod wfp;
 

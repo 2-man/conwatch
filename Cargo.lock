@@ -317,6 +317,7 @@ version = "0.1.0"
 dependencies = [
  "dns-lookup",
  "ferrisetw",
+ "flate2",
  "maxminddb",
  "netstat2",
  "rusqlite",

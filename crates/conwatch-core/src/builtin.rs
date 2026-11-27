@@ -21,8 +21,12 @@ impl Module for NewAppAlert {
         "new-app-alert"
     }
     fn on_event(&mut self, event: &Event, ctx: &mut Context) {
-        if let (true, Event::AppFirstSeen { process, .. }) = (self.enabled.load(Ordering::Relaxed), event) {
-            ctx.alert(AlertLevel::Warning, self.name(), format!("New application is using the network: {process}"));
+        if let (true, Event::AppFirstSeen { process, remote, .. }) = (self.enabled.load(Ordering::Relaxed), event) {
+            let msg = match remote {
+                Some(r) => format!("{process} initiated its first network connection to {r}"),
+                None => format!("{process} initiated its first network connection"),
+            };
+            ctx.alert(AlertLevel::Warning, self.name(), msg);
         }
     }
 }

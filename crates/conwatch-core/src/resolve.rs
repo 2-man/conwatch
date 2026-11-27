@@ -7,7 +7,8 @@ use std::sync::mpsc::{channel, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-fn is_public(ip: &IpAddr) -> bool {
+/// True for globally routable addresses (not private, loopback, link-local, multicast...).
+pub fn is_public(ip: &IpAddr) -> bool {
     match ip {
         IpAddr::V4(v) => {
             !(v.is_private() || v.is_loopback() || v.is_link_local() || v.is_unspecified() || v.is_broadcast() || v.is_multicast())

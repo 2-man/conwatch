@@ -72,6 +72,13 @@ Wbudowane moduły w Rust implementują ten sam trait `Module` bez procesu.
 - [~] **7. macOS** – kod monitorów jest wieloplatformowy, CI buduje na macOS; brak firewalla: – implementacje `platform::*` (libproc/`nettop`/NetworkExtension), notarization, instalator.
 - [~] **8. Wydania** – CI gotowe (build+test Win/macOS); release.yml buduje zipy na tag v*. instalator Inno Setup (instalacja per-użytkownik, ~3 MB) zbudowany lokalnie i wpięty w release.yml; cicha instalacja i odinstalowanie sprawdzone. ZOSTAJE podpisywanie kodu: – CI GitHub Actions (build, testy, instalator MSI/NSIS), podpisywanie.
 
+## Rewizja interfejsu (etap UI-2, 2026-11)
+
+Wzorzec: GlassWire (oglądany lokalnie). Zrobione: nawigacja z 5 zakładkami, wykres z gładkimi obszarami, widok podzielony (Apps/Hosts/Traffic Type/Countries),
+licznik + WAN/LAN + przegląd 24 h, firewall z In/Out per aplikacja, log alertów z „NEW”, skaner sieci z producentami (IEEE OUI), zasoby systemu, ustawienia.
+Dane per połączenie pochodzą z ETW (adres i port zdalny), kraje z opcjonalnej bazy DB-IP Lite (pobierana na żądanie).
+Brak: mapa świata, ikony aplikacji, GPU, interaktywny suwak przeglądu, profile firewalla, VirusTotal.
+
 ## Ryzyka
 
 - Przepustowość per proces na Windows wymaga ETW (admin) – plan: osobna, mała usługa lub uruchamianie z podniesieniem uprawnień.

@@ -5,87 +5,431 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ConWatch</title>
 <style>
-:root{--bg:#f4f6f9;--card:#fff;--fg:#1c2530;--mut:#6b7788;--line:#e3e8ef;--acc:#2f7cf6;--rx:#2f7cf6;--tx:#f08a24;--warn:#e0a100;--crit:#d6343a;--ok:#1f9d63}
-@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#10151c;--card:#182029;--fg:#e6ebf2;--mut:#8a97a8;--line:#263140;--acc:#5b9bff;--rx:#5b9bff;--tx:#ffa24a;--warn:#f2c230;--crit:#ff5c63;--ok:#3ccf8e}}
-:root[data-theme=dark]{--bg:#10151c;--card:#182029;--fg:#e6ebf2;--mut:#8a97a8;--line:#263140;--acc:#5b9bff;--rx:#5b9bff;--tx:#ffa24a;--warn:#f2c230;--crit:#ff5c63;--ok:#3ccf8e}
-label{display:block;margin:10px 0 4px;color:var(--mut)}input,select{background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font:inherit}
-*{box-sizing:border-box}body{margin:0;font:14px system-ui,Segoe UI,sans-serif;background:var(--bg);color:var(--fg)}
-header{display:flex;align-items:center;gap:24px;padding:12px 24px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0}
-.logo{font-weight:700;font-size:18px;color:var(--acc)}
-nav{display:flex;gap:4px;flex:1}nav button{background:none;border:0;color:var(--mut);padding:8px 14px;border-radius:8px;cursor:pointer;font:inherit}
-nav button.on{background:var(--bg);color:var(--fg);font-weight:600}
-.speed{display:flex;gap:16px;font-variant-numeric:tabular-nums}.rx{color:var(--rx)}.tx{color:var(--tx)}
-main{max-width:1100px;margin:20px auto;padding:0 24px}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
-h2{margin:0 0 12px;font-size:15px}canvas{width:100%;height:260px;display:block}
-table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line)}th{color:var(--mut);font-weight:500;font-size:12px}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.big{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}.sub{color:var(--mut);font-size:12px}
-.pill{padding:2px 8px;border-radius:99px;font-size:12px;background:var(--bg)}.warning{color:var(--warn)}.critical{color:var(--crit)}.info{color:var(--acc)}
-button.act{background:var(--bg);border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:4px 10px;cursor:pointer}button.act:hover{border-color:var(--crit);color:var(--crit)}
-.tab{display:none}.tab.on{display:block}.empty{color:var(--mut);padding:12px 0}#msg{position:fixed;bottom:16px;right:16px;background:var(--card);border:1px solid var(--line);padding:10px 14px;border-radius:10px;display:none}
+:root{
+  --bg:#ffffff;--panel:#f5f7fa;--card:#ffffff;--fg:#1d2733;--mut:#7c8794;--line:#e6eaef;--hover:#f0f3f7;
+  --acc:#3d7bf7;--acc-bg:#e8f0ff;--chart:#e9f8f8;--grid:#cfe6e8;
+  --rx:#f7c829;--rx-line:#eab308;--tx:#f08fb0;--tx-line:#e0608f;
+  --good:#37a849;--good-bg:#e2f5e5;--bad:#d9433c;--bad-bg:#fbe5e3;--warn:#e69a00;--new-bg:#fff9ea;
+  --shadow:0 1px 3px rgba(20,30,45,.08);
+}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){
+  --bg:#12171d;--panel:#171d25;--card:#1b222b;--fg:#e8edf3;--mut:#8c98a6;--line:#27303b;--hover:#212a35;
+  --acc:#6ea0ff;--acc-bg:#1f2d47;--chart:#12262b;--grid:#1f3a40;
+  --rx:#e9b91c;--rx-line:#f2c94c;--tx:#e0709a;--tx-line:#ff8fb7;
+  --good:#4cc364;--good-bg:#1b3523;--bad:#ff6b63;--bad-bg:#3a1f1e;--warn:#f2b53a;--new-bg:#2a2616;--shadow:none}}
+:root[data-theme=dark]{
+  --bg:#12171d;--panel:#171d25;--card:#1b222b;--fg:#e8edf3;--mut:#8c98a6;--line:#27303b;--hover:#212a35;
+  --acc:#6ea0ff;--acc-bg:#1f2d47;--chart:#12262b;--grid:#1f3a40;
+  --rx:#e9b91c;--rx-line:#f2c94c;--tx:#e0709a;--tx-line:#ff8fb7;
+  --good:#4cc364;--good-bg:#1b3523;--bad:#ff6b63;--bad-bg:#3a1f1e;--warn:#f2b53a;--new-bg:#2a2616;--shadow:none}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font:13px/1.35 "Segoe UI",system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--fg);display:flex;flex-direction:column;overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer}
+svg{display:block}
+/* header */
+header{display:flex;align-items:center;height:64px;padding:0 18px;border-bottom:1px solid var(--line);background:var(--bg);flex:none}
+.brand{width:190px}.brand b{font-size:15px;font-weight:600;letter-spacing:.2px}.brand small{display:block;color:var(--mut);font-size:10px;letter-spacing:.6px;text-transform:uppercase}
+nav{flex:1;display:flex;justify-content:center;gap:4px}
+nav button{display:flex;align-items:center;gap:8px;background:none;border:0;border-radius:10px;padding:8px 14px;color:var(--mut);position:relative;text-align:left;line-height:1.15}
+nav button:hover{background:var(--hover)}
+nav button.on{background:var(--acc-bg);color:var(--acc)}
+nav svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+nav span{display:block;font-size:12px}
+.badge{position:absolute;top:2px;left:26px;min-width:17px;height:17px;border-radius:9px;background:#e53935;color:#fff;font-size:10px;font-weight:700;display:none;align-items:center;justify-content:center;padding:0 4px}
+.right{width:190px;display:flex;justify-content:flex-end;align-items:center;gap:10px;color:var(--mut)}
+.iconbtn{background:none;border:0;border-radius:8px;padding:6px;color:var(--mut)}.iconbtn:hover{background:var(--hover);color:var(--fg)}.iconbtn.on{color:var(--acc);background:var(--acc-bg)}
+.iconbtn svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.banner{display:none;align-items:center;gap:12px;background:var(--new-bg);border-bottom:1px solid var(--line);padding:7px 18px;color:var(--fg)}
+.banner.show{display:flex}.banner span{flex:1}
+main{flex:1;min-height:0;position:relative}
+.tab{display:none;position:absolute;inset:0;flex-direction:column}.tab.on{display:flex}
+.scroll{overflow:auto;flex:1;min-height:0}
+/* common controls */
+.bar{display:flex;align-items:center;gap:10px;padding:12px 16px;flex:none}
+.sp{flex:1}
+.pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--card);border-radius:20px;padding:6px 14px;box-shadow:var(--shadow);color:var(--fg)}
+.pill:hover{background:var(--hover)}
+.pill.primary{background:var(--acc);border-color:var(--acc);color:#fff}
+.pill[disabled]{opacity:.5;cursor:default}
+select.pill{appearance:none;padding-right:26px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%237c8794' fill='none' stroke-width='1.6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
+input[type=text],input[type=search],input[type=number]{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:6px 14px;color:var(--fg);font:inherit;outline:none}
+input:focus{border-color:var(--acc)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:20px;overflow:hidden;background:var(--card);box-shadow:var(--shadow)}
+.seg button{background:none;border:0;padding:6px 16px;color:var(--mut);display:flex}
+.seg button.on{background:var(--acc);color:#fff}
+.seg svg{width:20px;height:18px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.rx{color:var(--rx-line)}.tx{color:var(--tx-line)}
+.mut{color:var(--mut)}.nowrap{white-space:nowrap}
+.cc{display:inline-block;min-width:22px;text-align:center;font-size:10px;font-weight:700;border-radius:4px;padding:1px 4px;background:var(--panel);border:1px solid var(--line);color:var(--mut)}
+.av{width:22px;height:22px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:11px;flex:none}
+/* traffic graph */
+#graphView{flex:1;min-height:0;position:relative;background:var(--chart);margin:0}
+#cv{position:absolute;inset:0;width:100%;height:100%}
+#ymax{position:absolute;left:14px;top:8px;color:var(--mut);font-size:12px}
+#tip{position:absolute;pointer-events:none;background:var(--card);border:1px solid var(--line);box-shadow:0 4px 14px rgba(0,0,0,.18);border-radius:8px;padding:8px 10px;display:none;z-index:5;white-space:nowrap}
+#splitView{flex:1;min-height:0;overflow:auto;display:none;padding:6px 16px 10px}
+.cols{display:grid;grid-template-columns:repeat(4,1fr);gap:0}
+.col{padding:0 14px;border-left:1px solid var(--line);min-width:0}.col:first-child{border-left:0;padding-left:0}
+.col h3{margin:6px 0 10px;font-size:13px;font-weight:600;color:var(--mut)}
+.row{display:grid;grid-template-columns:22px 1fr auto;column-gap:8px;align-items:center;padding:4px 0}
+.row .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .meter{grid-column:2/4;height:3px;border-radius:2px;background:var(--line);overflow:hidden;display:flex;margin-top:2px}
+.meter i{display:block;height:100%}.meter .a{background:var(--rx)}.meter .b{background:var(--tx)}
+.empty{color:var(--mut);padding:14px 0}
+#summary{flex:none;border-top:1px solid var(--line);padding:14px 22px 6px;background:var(--bg)}
+.sumrow{display:flex;align-items:center;gap:22px}
+.tot{width:150px}.tot b{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}.tot div{color:var(--mut);font-variant-numeric:tabular-nums}
+.tot.l{text-align:right}
+#gauge{width:112px;height:62px;flex:none}
+.wanlan{flex:1;border-left:1px solid var(--line);padding-left:22px;display:grid;grid-template-columns:44px 90px 1fr;row-gap:12px;align-items:center;font-variant-numeric:tabular-nums}
+.wanlan .bar2{height:5px;border-radius:3px;background:var(--line);display:flex;overflow:hidden}
+.bar2 i{display:block;height:100%}.bar2 .a{background:var(--rx)}.bar2 .b{background:var(--tx)}
+#mini{display:block;width:100%;height:58px;margin-top:6px}
+/* tables */
+table{width:100%;border-collapse:collapse}
+thead th{position:sticky;top:0;background:var(--panel);z-index:2;text-align:left;font-weight:500;color:var(--mut);padding:8px 10px;border-bottom:1px solid var(--line);border-top:1px solid var(--line);font-size:12px}
+td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr.grp td{background:var(--panel);font-weight:600;padding:8px 14px}
+tr.sub td{background:var(--panel);padding:4px 10px 4px 62px;color:var(--mut)}
+tbody tr:hover td{background:var(--hover)}tr.grp:hover td,tr.sub:hover td{background:var(--panel)}
+.fw{display:inline-block;min-width:78px;text-align:center;border-radius:6px;padding:3px 10px;border:0;font-size:12px}
+.fw.ok{background:var(--good-bg);color:var(--good)}.fw.no{background:var(--bad-bg);color:var(--bad)}.fw[disabled]{opacity:.45;cursor:default}
+.app{display:flex;align-items:center;gap:10px;min-width:0}.app span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chev{background:none;border:0;color:var(--mut);padding:0 4px;transition:transform .12s}.chev.open{transform:rotate(90deg)}
+.more{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:0 7px;font-size:11px;color:var(--mut);margin-left:6px}
+canvas.spark{width:80px;height:22px;display:block}
+.sw{position:relative;width:38px;height:20px;border-radius:10px;background:#c4ccd6;border:0;transition:.15s;flex:none}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.15s}
+.sw.on{background:var(--acc)}.sw.on::after{left:20px}
+/* alerts */
+.alist{padding:0 16px 30px}
+.day{margin:16px 0 8px;color:var(--mut);font-weight:600}
+.agroup{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card)}
+.alert{display:flex;align-items:center;gap:14px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.alert:last-child{border-bottom:0}.alert.unread{background:var(--new-bg)}
+.alert .dot{width:6px;height:6px;border-radius:50%;background:#e53935;flex:none;visibility:hidden}.alert.unread .dot{visibility:visible}
+.tagnew{width:34px;height:34px;border-radius:50%;background:var(--good);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none}
+.tagnew.warning{background:var(--warn)}.tagnew.critical{background:var(--bad)}.tagnew.info{background:var(--acc)}
+.alert .msg{flex:1;min-width:0}.alert .when{text-align:right;color:var(--mut);white-space:nowrap}
+/* network */
+.kind{width:30px;height:30px;stroke:var(--mut);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.on-dot{width:8px;height:8px;border-radius:50%;background:#c4ccd6;display:inline-block}.on-dot.on{background:var(--good)}
+/* system */
+#sysWrap{flex:1;min-height:0;display:flex;flex-direction:column;background:var(--chart)}
+.syschart{position:relative;flex:1;min-height:0}.syschart canvas{position:absolute;inset:0;width:100%;height:100%}
+.syschart .lab{position:absolute;left:16px;top:6px;color:var(--mut);z-index:1}.syschart .mx{position:absolute;right:16px;top:6px;color:var(--mut);z-index:1}
+#sysStats{display:flex;justify-content:space-around;background:var(--bg);border-top:1px solid var(--line);padding:12px 0;flex:none}
+#sysStats div{text-align:center}#sysStats b{display:block;font-size:14px;font-weight:600}#sysStats span{color:var(--mut)}
+/* settings */
+.sbox{max-width:760px;margin:0 auto;padding:18px 20px 40px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:6px 18px;margin-bottom:16px}
+.card h3{margin:14px 0 4px;font-size:13px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.set{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--line)}.set:last-child{border-bottom:0}
+.set .t{flex:1}.set .t small{display:block;color:var(--mut)}
+.tagm{display:inline-block;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:2px 9px;margin:2px 4px 2px 0}
+/* modal + toast */
+#modal{position:fixed;inset:0;background:rgba(10,15,25,.45);display:none;align-items:center;justify-content:center;z-index:20}
+#modal .box{background:var(--card);border-radius:12px;padding:20px 22px;max-width:420px;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+#modal .box p{margin:0 0 16px}#modal .btns{display:flex;justify-content:flex-end;gap:10px}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#263241;color:#fff;border-radius:20px;padding:9px 18px;display:none;z-index:30}
 </style>
 </head>
 <body>
 <header>
-  <div class="logo">ConWatch</div>
+  <div class="brand"><b>ConWatch</b><small id="ver">network monitor</small></div>
   <nav id="nav"></nav>
-  <div class="speed"><span class="rx">▼ <b id="rx">0</b></span><span class="tx">▲ <b id="tx">0</b></span></div>
+  <div class="right">
+    <span id="speed" class="nowrap" style="font-variant-numeric:tabular-nums"></span>
+    <button class="iconbtn" id="gear" title="Settings"></button>
+  </div>
 </header>
+<div class="banner" id="adminBanner"><span>Per-application traffic, hosts and countries need administrator rights.</span><button class="pill primary" id="elevate">Restart as administrator</button></div>
 <main>
-  <section class="tab" id="graph">
-    <div class="card"><h2>Network traffic (last 10 min)</h2><canvas id="cv"></canvas></div>
+  <!-- TRAFFIC -->
+  <section class="tab" id="t-traffic">
+    <div class="bar">
+      <div class="seg" id="viewSeg"></div>
+      <span class="sp"></span>
+      <select class="pill" id="rangeSel"></select>
+    </div>
+    <div id="graphView"><div id="ymax"></div><canvas id="cv"></canvas><div id="tip"></div></div>
+    <div id="splitView"><div class="cols" id="cols"></div></div>
+    <div id="summary">
+      <div class="sumrow">
+        <div class="tot l"><b class="rx" id="sRx">0 B</b><div id="sRxRate">0 B/s</div></div>
+        <svg id="gauge" viewBox="0 0 112 62"></svg>
+        <div class="tot"><b class="tx" id="sTx">0 B</b><div id="sTxRate">0 B/s</div></div>
+        <div class="wanlan">
+          <span class="mut">WAN</span><span id="wanTxt"></span><div class="bar2" id="wanBar"></div>
+          <span class="mut">LAN</span><span id="lanTxt"></span><div class="bar2" id="lanBar"></div>
+        </div>
+      </div>
+      <canvas id="mini"></canvas>
+    </div>
   </section>
-  <section class="tab" id="usage">
-    <div class="grid" id="usageCards"></div>
-    <div class="card"><h2>Top applications (last 24 h)</h2><div id="appsNote" class="sub"></div><table><thead><tr><th>Application</th><th>Downloaded</th><th>Uploaded</th></tr></thead><tbody id="appRows"></tbody></table></div>
+  <!-- FIREWALL -->
+  <section class="tab" id="t-firewall">
+    <div class="bar">
+      <span class="mut">Firewall</span><span id="fwState" class="pill" style="cursor:default"></span>
+      <span class="mut" style="margin-left:10px">Mode</span>
+      <select class="pill" id="fwMode"><option value="manual">Click to block</option><option value="auto">Auto-block new apps</option></select>
+      <span class="sp"></span>
+      <button class="pill" id="blockSel" style="display:none">Block selected</button><button class="pill" id="allowSel" style="display:none">Allow selected</button>
+      <input type="search" id="fwSearch" placeholder="Search apps">
+      <select class="pill" id="fwFilter"><option value="all">All apps</option><option value="active">Active</option><option value="blocked">Blocked</option></select>
+    </div>
+    <div class="scroll"><table><thead><tr><th style="width:34px"></th><th>Apps</th><th style="width:110px">In connections</th><th style="width:110px">Out connections</th><th>Hosts</th><th style="width:84px">↓</th><th style="width:84px">↑</th><th style="width:96px">Traffic</th></tr></thead><tbody id="fwRows"></tbody></table></div>
   </section>
-  <section class="tab" id="conns"><div class="card"><h2>Active connections</h2><table><thead><tr><th>Application</th><th>PID</th><th>Remote</th><th>Host</th><th>Country</th><th></th></tr></thead><tbody id="connRows"></tbody></table></div></section>
-  <section class="tab" id="things"><div class="card"><h2>Devices on your network</h2><table><thead><tr><th>IP</th><th>MAC</th></tr></thead><tbody id="devRows"></tbody></table></div></section>
-  <section class="tab" id="alerts"><div class="card"><h2>Alerts</h2><table><thead><tr><th>Time</th><th>Level</th><th>Source</th><th>Message</th></tr></thead><tbody id="alertRows"></tbody></table></div></section>
-  <section class="tab" id="settings"><div class="card"><h2>Settings</h2>
-    <label>Theme</label><select id="sTheme"><option value="auto">Automatic</option><option value="light">Light</option><option value="dark">Dark</option></select>
-    <label>Keep history (days)</label><input id="sRet" type="number" min="1" max="3650">
-    <label>Traffic spike alert threshold (MB/s)</label><input id="sSpike" type="number" min="1" max="10000">
-    <label><input id="sNew" type="checkbox"> Alert when a new application uses the network</label>
-    <label><input id="sAuto" type="checkbox"> Automatically block every new application (needs Administrator; may break software that was never seen before)</label>
-    <p><button class="act" id="sSave">Save</button></p>
-    <p class="sub" id="geoNote"></p></div></section>
-  <section class="tab" id="fw"><div class="card"><h2>Blocked applications</h2><table><tbody id="fwRows"></tbody></table><p class="sub">Blocking uses Windows Firewall and requires running ConWatch as Administrator.</p></div>
-    <div class="card"><h2>Modules</h2><div id="mods"></div></div></section>
+  <!-- ALERTS -->
+  <section class="tab" id="t-alerts">
+    <div class="bar">
+      <select class="pill" id="alFilter"><option value="important">Important</option><option value="all">All alerts</option></select>
+      <select class="pill" id="alRange"><option value="86400">Last 24 hours</option><option value="604800">Last 7 days</option><option value="2678400">All time</option></select>
+      <span class="sp"></span>
+      <button class="pill" id="markRead">Mark all as read</button>
+      <input type="search" id="alSearch" placeholder="Search">
+    </div>
+    <div class="scroll"><div class="alist" id="alList"></div></div>
+  </section>
+  <!-- NETWORK -->
+  <section class="tab" id="t-network">
+    <div class="bar">
+      <button class="pill" id="scanBtn">Scan</button><span class="mut" id="scanInfo"></span>
+      <span class="sp"></span>
+      <span class="mut">Auto-scan</span><button class="sw" id="autoScan"></button>
+      <input type="search" id="netSearch" placeholder="Search">
+    </div>
+    <div class="scroll"><table><thead><tr><th style="width:26px"></th><th style="width:60px">Type</th><th>Name</th><th>Description</th><th>IP</th><th>MAC address</th><th>Last seen</th><th>First seen</th></tr></thead><tbody id="netRows"></tbody></table></div>
+  </section>
+  <!-- SYSTEM -->
+  <section class="tab" id="t-system">
+    <div class="bar"><span class="sp"></span><span class="mut">Last 5 minutes</span></div>
+    <div id="sysWrap">
+      <div class="syschart"><span class="lab">CPU</span><span class="mx" id="mxCpu"></span><canvas id="cCpu"></canvas></div>
+      <div class="syschart"><span class="lab">Memory</span><span class="mx" id="mxMem"></span><canvas id="cMem"></canvas></div>
+      <div class="syschart"><span class="lab">Disk transfer rate</span><span class="mx" id="mxDisk"></span><canvas id="cDisk"></canvas></div>
+    </div>
+    <div id="sysStats"></div>
+  </section>
+  <!-- SETTINGS -->
+  <section class="tab" id="t-settings"><div class="scroll"><div class="sbox" id="setBox"></div></div></section>
 </main>
-<div id="msg"></div>
+<div id="modal"><div class="box"><p id="modalMsg"></p><div class="btns"><button class="pill" id="mNo">Cancel</button><button class="pill primary" id="mYes">Continue</button></div></div></div>
+<div id="toast"></div>
 <script>
-const TABS={graph:'Graph',usage:'Usage',conns:'Connections',things:'Things',alerts:'Alerts',fw:'Firewall & Modules',settings:'Settings'};
-const $=id=>document.getElementById(id);let cur=localStorage.tab||'graph',S=null;
-const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function fmt(b){const u=['B','KB','MB','GB','TB'];let i=0;while(b>=1024&&i<4){b/=1024;i++}return b.toFixed(i?1:0)+' '+u[i]}
-function show(t){cur=t;localStorage.tab=t;document.querySelectorAll('.tab').forEach(e=>e.classList.toggle('on',e.id===t));[...$('nav').children].forEach(b=>b.classList.toggle('on',b.dataset.t===t));draw()}
-for(const t in TABS){const b=document.createElement('button');b.textContent=TABS[t];b.dataset.t=t;b.onclick=()=>show(t);$('nav').append(b)}
-function toast(m){const e=$('msg');e.textContent=m;e.style.display='block';setTimeout(()=>e.style.display='none',3500)}
-async function api(p,exe){const r=await fetch(p,{method:'POST',headers:{'X-ConWatch':'1'},body:JSON.stringify({exe})});const j=await r.json();toast(j.ok?'Done':'Error: '+j.error);refresh()}
-function chart(){const c=$('cv'),d=devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;c.width=w*d;c.height=h*d;const x=c.getContext('2d');x.scale(d,d);x.clearRect(0,0,w,h);
- const T=S.traffic;if(T.length<2){x.fillStyle=getComputedStyle(document.body).color;x.fillText('Collecting data…',10,20);return}
- const max=Math.max(1024,...T.map(t=>Math.max(t[1],t[2])))*1.1,css=n=>getComputedStyle(document.documentElement).getPropertyValue(n),X=i=>i/(T.length-1)*(w-50)+45,Y=v=>h-18-v/max*(h-30);
- x.strokeStyle=css('--line');x.fillStyle=css('--mut');x.font='11px system-ui';
- for(let i=0;i<=4;i++){const y=Y(max*i/4);x.beginPath();x.moveTo(45,y);x.lineTo(w,y);x.stroke();x.fillText(fmt(max*i/4)+'/s',0,y+4)}
- [[1,'--rx'],[2,'--tx']].forEach(([k,col])=>{x.beginPath();T.forEach((t,i)=>i?x.lineTo(X(i),Y(t[k])):x.moveTo(X(i),Y(t[k])));x.strokeStyle=css(col);x.lineWidth=2;x.stroke();x.lineTo(X(T.length-1),h-18);x.lineTo(X(0),h-18);x.globalAlpha=.12;x.fillStyle=css(col);x.fill();x.globalAlpha=1})}
-function blockBtn(msg){const name=msg.split(': ').pop();const c=S.connections.find(c=>c.process===name&&c.exe);return c?` <button class="act" data-exe="${esc(c.exe)}">Block</button>`:''}
-function applyTheme(){const t=S&&S.settings.theme;if(t&&t!=='auto')document.documentElement.dataset.theme=t;else delete document.documentElement.dataset.theme}
-let formFilled=false;
-function fillSettings(){if(formFilled||!S)return;formFilled=true;$('sTheme').value=S.settings.theme;$('sRet').value=S.settings.retention_days;$('sSpike').value=S.settings.spike_mb_s;$('sNew').checked=S.settings.alert_new_apps;$('sAuto').checked=S.settings.auto_block_new_apps;$('geoNote').textContent=S.geo?'Country lookup active (GeoLite2-Country.mmdb found).':'Country lookup is off: place GeoLite2-Country.mmdb (free from MaxMind) in %LOCALAPPDATA%\\ConWatch and restart.'}
-function draw(){if(!S)return;applyTheme();fillSettings();const l=S.traffic.at(-1)||[0,0,0];$('rx').textContent=fmt(l[1])+'/s';$('tx').textContent=fmt(l[2])+'/s';
- if(cur==='graph')chart();
- if(cur==='usage')$('usageCards').innerHTML=[['Last 24 hours','day'],['Last 7 days','week'],['Last 30 days','month']].map(([n,k])=>`<div class="card"><div class="sub">${n}</div><div class="big rx">▼ ${fmt(S.usage[k][0])}</div><div class="big tx">▲ ${fmt(S.usage[k][1])}</div></div>`).join('');
- if(cur==='usage'){$('appsNote').textContent=S.apps_error?'Per-application traffic needs Administrator rights: '+S.apps_error:'';
-  $('appRows').innerHTML=S.apps.map(a=>`<tr><td>${esc(a.app)}</td><td class="rx">${fmt(a.rx)}</td><td class="tx">${fmt(a.tx)}</td></tr>`).join('')||'<tr><td class="empty" colspan="3">No data yet</td></tr>'}
- if(cur==='conns')$('connRows').innerHTML=S.connections.filter(c=>c.proto==='tcp').map(c=>`<tr><td>${esc(c.process)}</td><td>${c.pid}</td><td>${esc(c.remote_addr)}:${c.remote_port}</td><td>${esc(c.host||'')}</td><td>${esc(c.country||'')}</td><td>${c.exe?`<button class="act" data-exe="${esc(c.exe)}">Block</button>`:''}</td></tr>`).join('')||'<tr><td class="empty">No connections</td></tr>';
- if(cur==='things')$('devRows').innerHTML=S.devices.map(d=>`<tr><td>${esc(d.ip)}</td><td>${esc(d.mac)}</td></tr>`).join('')||'<tr><td class="empty">No devices found</td></tr>';
- if(cur==='alerts')$('alertRows').innerHTML=S.alerts.map(a=>`<tr><td>${new Date(a.ts*1000).toLocaleString()}</td><td class="${a.level}">${a.level}</td><td>${esc(a.source)}</td><td>${esc(a.message)}${a.source==='new-app-alert'?blockBtn(a.message):''}</td></tr>`).join('')||'<tr><td class="empty">No alerts yet</td></tr>';
- if(cur==='fw'){$('fwRows').innerHTML=S.blocked.map(b=>`<tr><td>${esc(b)}</td><td><button class="act" data-un="${esc(b)}">Unblock</button></td></tr>`).join('')||'<tr><td class="empty">Nothing blocked</td></tr>';
-  $('mods').innerHTML=S.modules.map(m=>`<span class="pill">${esc(m)}</span> `).join('')+S.module_errors.map(e=>`<div class="critical">${esc(e)}</div>`).join('')}}
-document.body.addEventListener('click',e=>{const t=e.target;if(t.dataset.exe&&confirm('Block '+t.dataset.exe+'?'))api('/api/block',t.dataset.exe);if(t.dataset.un)api('/api/unblock',t.dataset.un)});
-$('sSave').onclick=async()=>{const body={theme:$('sTheme').value,retention_days:+$('sRet').value,spike_mb_s:+$('sSpike').value,alert_new_apps:$('sNew').checked,auto_block_new_apps:$('sAuto').checked};const r=await fetch('/api/settings',{method:'POST',headers:{'X-ConWatch':'1'},body:JSON.stringify(body)});const j=await r.json();toast(j.ok?'Saved':'Error: '+j.error);formFilled=false;refresh()};
-async function refresh(){try{S=await(await fetch('/api/state')).json();draw()}catch(e){}}
-show(cur);refresh();setInterval(refresh,1500);addEventListener('resize',draw);
+"use strict";
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ICON={
+ traffic:'<svg viewBox="0 0 24 24"><path d="M3 20 8 7l4 8 3-5 6 10"/></svg>',
+ firewall:'<svg viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 4.5 3.2 7.5 8 9 4.8-1.5 8-4.5 8-9V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg>',
+ alerts:'<svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 1 1 12 0v5l2 2H4l2-2Z"/><path d="M10 21h4"/></svg>',
+ network:'<svg viewBox="0 0 24 24"><circle cx="5" cy="6" r="2.2"/><circle cx="19" cy="9" r="2.2"/><circle cx="9" cy="18" r="2.2"/><path d="m7 7 10 1.5M6.2 8 8.2 16M17.6 10.8 10.6 17"/></svg>',
+ system:'<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9.5" y="9.5" width="5" height="5"/><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"/></svg>',
+ gear:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>',
+ graph:'<svg viewBox="0 0 24 24"><path d="M2 14c2 0 2-7 4-7s2 9 4 9 2-5 4-5 2 4 4 4 2-3 4-3"/></svg>',
+ split:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M9 5v14M15 5v14"/></svg>',
+ chev:'<svg width="10" height="10" viewBox="0 0 10 10"><path d="m3 1 4 4-4 4" stroke="currentColor" fill="none" stroke-width="1.6"/></svg>'
+};
+const KIND={
+ router:'<path d="M4 15h16v5H4zM8 18h.01M12 18h.01M7 15l3-6M17 15l-3-6M12 9V5"/>',
+ printer:'<path d="M7 9V4h10v5M7 17H4v-7h16v7h-3M7 14h10v6H7z"/>',
+ smart:'<path d="M5 11l7-6 7 6v8H5zM10 19v-4h4v4"/>',
+ computer:'<rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M9 20h6M12 16v4"/>',
+ phone:'<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/>',
+ tv:'<rect x="3" y="5" width="18" height="12" rx="1.5"/><path d="M8 21h8"/>',
+ generic:'<circle cx="6" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="12" r="2"/><path d="M8 6c6 0 6 6 8 6M8 18c6 0 6-6 8-6"/>'
+};
+const KIND_NAME={router:'Router',printer:'Printer',smart:'Smart Device',computer:'Computer',phone:'Phone',tv:'TV',generic:'Generic'};
+const RANGES=[[300,'5 Minutes'],[900,'15 Minutes'],[3600,'1 Hour'],[86400,'24 Hours'],[604800,'7 Days'],[2592000,'30 Days']];
+const regionNames=(()=>{try{return new Intl.DisplayNames(['en'],{type:'region'})}catch{return null}})();
+const cname=c=>{try{return regionNames?regionNames.of(c):c}catch{return c}};
+
+const S={tab:localStorage.cwTab||'traffic',range:+localStorage.cwRange||300,view:localStorage.cwView||'graph',meta:null,ov:null,mini:null,bd:null,fw:null,al:null,net:null,sys:null,open:new Set(),sel:new Set(),pts:[]};
+if(!['traffic','firewall','alerts','network','system','settings'].includes(S.tab))S.tab='traffic';
+
+function fmtB(b){const u=['B','KB','MB','GB','TB'];let i=0;b=+b||0;while(b>=1024&&i<4){b/=1024;i++}return (i?b.toFixed(b<10?2:1):b.toFixed(0))+' '+u[i]}
+const fmtR=b=>fmtB(b)+'/s';
+function hue(s){let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))>>>0;return h%360}
+const avatar=n=>`<span class="av" style="background:hsl(${hue(n)} 55% 48%)">${esc((n||'?').replace(/^pid /,'#')[0].toUpperCase())}</span>`;
+const cc=c=>c?`<span class="cc" title="${esc(cname(c))}">${esc(c)}</span>`:'';
+function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.display='none',3200)}
+function confirmBox(msg){return new Promise(r=>{$('#modalMsg').textContent=msg;$('#modal').style.display='flex';const done=v=>{$('#modal').style.display='none';r(v)};$('#mYes').onclick=()=>done(true);$('#mNo').onclick=()=>done(false)})}
+async function get(p){const r=await fetch(p,{cache:'no-store'});return r.json()}
+async function post(p,b){const r=await fetch(p,{method:'POST',headers:{'X-ConWatch':'1'},body:JSON.stringify(b||{})});return r.json()}
+const nice=v=>{const e=Math.pow(10,Math.floor(Math.log10(Math.max(v,1))));for(const m of [1,2,5,10])if(m*e>=v)return m*e;return 10*e};
+
+/* ---------- navigation ---------- */
+const TABS=[['traffic','Traffic','Monitor'],['firewall','Firewall','Protect'],['alerts','Alerts','Log'],['network','Network','Scanner'],['system','System','Resources']];
+$('#nav').innerHTML=TABS.map(([k,a,b])=>`<button data-tab="${k}">${ICON[k]}<span>${a}<br>${b}</span>${k==='alerts'?'<i class="badge" id="badge"></i>':''}</button>`).join('');
+$('#gear').innerHTML=ICON.gear;
+$('#viewSeg').innerHTML=`<button data-view="graph" title="Graph">${ICON.graph}</button><button data-view="split" title="Apps, hosts, traffic types">${ICON.split}</button>`;
+$('#rangeSel').innerHTML=RANGES.map(([v,n])=>`<option value="${v}">${n}</option>`).join('');
+function show(t){S.tab=t;localStorage.cwTab=t;document.querySelectorAll('.tab').forEach(e=>e.classList.toggle('on',e.id==='t-'+t));
+ document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));$('#gear').classList.toggle('on',t==='settings');
+ if(t==='settings')renderSettings();poll(true)}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b)show(b.dataset.tab);const v=e.target.closest('[data-view]');if(v){S.view=v.dataset.view;localStorage.cwView=S.view;applyView();poll(true)}});
+$('#gear').onclick=()=>show('settings');
+$('#rangeSel').value=S.range;$('#rangeSel').onchange=e=>{S.range=+e.target.value;localStorage.cwRange=S.range;poll(true)};
+function applyView(){document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.toggle('on',b.dataset.view===S.view));$('#graphView').style.display=S.view==='graph'?'block':'none';$('#splitView').style.display=S.view==='split'?'block':'none'}
+$('#elevate').onclick=async()=>{const r=await post('/api/elevate');toast(r.ok?'Restarting with administrator rights…':(r.error||'Failed'))};
+
+/* ---------- chart helpers ---------- */
+function setup(c){const d=devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;if(c.width!==Math.round(w*d)||c.height!==Math.round(h*d)){c.width=Math.round(w*d);c.height=Math.round(h*d)}const x=c.getContext('2d');x.setTransform(d,0,0,d,0,0);x.clearRect(0,0,w,h);return{x,w,h}}
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function smooth(x,p){x.moveTo(p[0][0],p[0][1]);for(let i=1;i<p.length-1;i++){x.quadraticCurveTo(p[i][0],p[i][1],(p[i][0]+p[i+1][0])/2,(p[i][1]+p[i+1][1])/2)}const l=p[p.length-1];x.lineTo(l[0],l[1])}
+function area(x,p,bottom,fill,line,alpha){if(p.length<2)return;x.beginPath();smooth(x,p);x.lineTo(p[p.length-1][0],bottom);x.lineTo(p[0][0],bottom);x.closePath();x.globalAlpha=alpha;x.fillStyle=fill;x.fill();x.globalAlpha=1;if(line){x.beginPath();smooth(x,p);x.strokeStyle=line;x.lineWidth=1.4;x.stroke()}}
+function timeLabel(ts,range){const d=new Date(ts*1000);if(range<=900)return d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});if(range<=86400)return d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});return d.toLocaleDateString([], {day:'numeric',month:'short'})+' '+d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}
+
+/* ---------- traffic ---------- */
+function dense(series,since,now,step){const m=new Map(series.map(([t,r,x])=>[t,[r,x]]));const out=[];for(let t=Math.ceil(since/step)*step;t<=now;t+=step){const v=m.get(t)||[0,0];out.push([t,v[0],v[1]])}return out}
+function drawTraffic(){const o=S.ov;if(!o||S.tab!=='traffic'||S.view!=='graph')return;const{x,w,h}=setup($('#cv'));
+ const padB=26,bottom=h-padB,since=o.now-o.range,pts=dense(o.series,since,o.now,o.bucket);S.pts=pts;
+ const mx=nice(Math.max(1024,...pts.map(p=>p[1]+0),...pts.map(p=>p[2]+0))*1.1);$('#ymax').textContent=fmtR(mx);
+ x.strokeStyle=css('--grid');x.lineWidth=1;x.fillStyle=css('--mut');x.font='11px Segoe UI, system-ui';
+ for(let i=1;i<=3;i++){const y=bottom-(bottom-30)*i/3;x.beginPath();x.moveTo(0,y);x.lineTo(w,y);x.stroke()}
+ const X=t=>(t-since)/o.range*w,Y=v=>bottom-(v/mx)*(bottom-30);
+ if(pts.length>1){const dl=pts.map(p=>[X(p[0]),Y(p[1])]),ul=pts.map(p=>[X(p[0]),Y(p[2])]);
+  area(x,dl,bottom,css('--rx'),css('--rx-line'),.9);area(x,ul,bottom,css('--tx'),css('--tx-line'),.95)}
+ x.fillStyle=css('--mut');x.textAlign='center';for(let i=0;i<=7;i++){const t=since+o.range*(i+.5)/8;x.fillText(timeLabel(t,o.range),X(t),h-8)}
+ if(S.hover!=null&&pts.length>1){const t=since+S.hover/w*o.range;let b=0;pts.forEach((p,i)=>{if(Math.abs(p[0]-t)<Math.abs(pts[b][0]-t))b=i});const p=pts[b];
+  x.strokeStyle=css('--mut');x.setLineDash([3,3]);x.beginPath();x.moveTo(X(p[0]),0);x.lineTo(X(p[0]),bottom);x.stroke();x.setLineDash([]);
+  const tip=$('#tip');tip.style.display='block';tip.innerHTML=`<div class="mut">${esc(timeLabel(p[0],o.range))}</div><div class="rx">▼ ${fmtR(p[1])}</div><div class="tx">▲ ${fmtR(p[2])}</div>`;
+  tip.style.left=Math.min(X(p[0])+14,w-150)+'px';tip.style.top='40px'}else $('#tip').style.display='none'}
+$('#graphView').addEventListener('mousemove',e=>{S.hover=e.clientX-$('#graphView').getBoundingClientRect().left;drawTraffic()});
+$('#graphView').addEventListener('mouseleave',()=>{S.hover=null;drawTraffic()});
+function gauge(rx,tx){const g=$('#gauge'),tot=rx+tx,r=48,cx=56,cy=56,C=Math.PI*r,fr=tot?rx/tot:1;
+ const arc=(f0,f1,col)=>{const a0=Math.PI*(1-f0),a1=Math.PI*(1-f1);const p=a=>[cx+r*Math.cos(a),cy-r*Math.sin(a)];const [x0,y0]=p(a0),[x1,y1]=p(a1);return `<path d="M${x0} ${y0} A${r} ${r} 0 0 1 ${x1} ${y1}" stroke="${col}" stroke-width="8" fill="none" stroke-linecap="butt"/>`};
+ g.innerHTML=`<path d="M${cx-r} ${cy} A${r} ${r} 0 0 1 ${cx+r} ${cy}" stroke="${css('--line')}" stroke-width="8" fill="none"/>`+(tot?arc(0,Math.max(fr,.001),css('--rx-line'))+(tx?arc(fr,1,css('--tx-line')):''):'')+`<text x="56" y="56" text-anchor="middle" font-size="14" font-weight="600" fill="${css('--fg')}">${fmtB(tot)}</text>`}
+function renderSummary(){const o=S.ov;if(!o)return;$('#sRx').textContent='▼ '+fmtB(o.totals.rx);$('#sTx').textContent='▲ '+fmtB(o.totals.tx);$('#sRxRate').textContent=fmtR(o.rate.rx);$('#sTxRate').textContent=fmtR(o.rate.tx);gauge(o.totals.rx,o.totals.tx);
+ const tw=o.wan.rx+o.wan.tx,tl=o.lan.rx+o.lan.tx,mxv=Math.max(tw,tl,1);
+ $('#wanTxt').textContent=o.flows_available?fmtB(tw):'—';$('#lanTxt').textContent=o.flows_available?fmtB(tl):'—';
+ const bar=(r,t,m)=>`<i class="a" style="width:${r/m*100}%"></i><i class="b" style="width:${t/m*100}%"></i>`;
+ $('#wanBar').innerHTML=bar(o.wan.rx,o.wan.tx,mxv);$('#lanBar').innerHTML=bar(o.lan.rx,o.lan.tx,mxv)}
+function drawMini(){const m=S.mini;if(!m||S.tab!=='traffic')return;const{x,w,h}=setup($('#mini'));const since=m.now-m.range,pts=dense(m.series,since,m.now,m.bucket);
+ x.fillStyle=css('--chart');x.fillRect(0,0,w,h-14);const mx=nice(Math.max(1024,...pts.map(p=>p[1]+p[2]))*1.1);
+ area(x,pts.map(p=>[(p[0]-since)/m.range*w,h-14-(p[1]/mx)*(h-18)]),h-14,css('--rx'),null,.85);
+ const win=Math.min(1,S.range/m.range),wx=w*(1-win);x.strokeStyle=css('--acc');x.lineWidth=1.5;x.strokeRect(wx+.75,.75,w*win-1.5,h-14.5);
+ x.fillStyle=css('--mut');x.font='10px Segoe UI, system-ui';x.textAlign='center';for(let i=0;i<=5;i++){const t=since+m.range*(i+.5)/6;x.fillText(timeLabel(t,m.range),(t-since)/m.range*w,h-2)}}
+function renderBreakdown(){const b=S.bd;if(!b||S.tab!=='traffic'||S.view!=='split')return;
+ const mx=a=>Math.max(1,...a.map(i=>i.rx+i.tx));
+ const col=(title,items,fn,note,foot)=>{const m=mx(items);return `<div class="col"><h3>${title}</h3>${items.length?items.map(i=>`<div class="row">${fn(i)}<span class="nowrap mut">${fmtB(i.rx+i.tx)}</span><div class="meter"><i class="a" style="width:${i.rx/m*100}%"></i><i class="b" style="width:${i.tx/m*100}%"></i></div></div>`).join(''):`<div class="empty">${note||'No data yet'}</div>`}${foot&&items.length?`<div class="empty">${foot}</div>`:''}</div>`};
+ const noflow=b.flows_available?'':'Needs administrator rights';
+ const countries=b.countries.slice();if(b.local.rx+b.local.tx>0)countries.push({code:null,name:'Local Network',rx:b.local.rx,tx:b.local.tx});
+ $('#cols').innerHTML=col('Apps',b.apps,i=>`${avatar(i.name)}<span class="nm" title="${esc(i.name)}">${esc(i.name)}</span>`,noflow)
+  +col('Hosts',b.hosts,i=>`${cc(i.country)||avatar(i.app||'?')}<span class="nm" title="${esc(i.name)} — ${esc(i.app)}">${esc(i.name)}</span>`,noflow)
+  +col('Traffic Type',b.types,i=>`<span></span><span class="nm">${esc(i.name)}</span>`,noflow)
+  +col('Countries',countries,i=>`${cc(i.code)||'<span></span>'}<span class="nm">${esc(i.name||cname(i.code))}</span>`,!b.flows_available?noflow:(b.geo?'No data yet':'Download the country database in Settings'),!b.geo&&b.flows_available?'Download the country database in Settings to see countries':'')}
+async function pollTraffic(){const jobs=[get('/api/overview?range='+S.range).then(d=>{S.ov=d;renderSummary();drawTraffic()})];
+ if(S.view==='split')jobs.push(get('/api/breakdown?range='+S.range).then(d=>{S.bd=d;renderBreakdown()}));
+ if(!S.miniAt||Date.now()-S.miniAt>30000){S.miniAt=Date.now();jobs.push(get('/api/overview?range=86400').then(d=>{S.mini=d;drawMini()}))}
+ await Promise.all(jobs);drawMini()}
+
+/* ---------- firewall ---------- */
+async function fwSet(app,dir,blocked){if(app.protected&&blocked&&!await confirmBox(`${app.name} is part of Windows or ConWatch. Blocking it can break your system. Block anyway?`))return;
+ const r=await post('/api/firewall',{exe:app.exe,dir,blocked});if(r.error)toast(r.error);else toast((blocked?'Blocked ':'Allowed ')+app.name);pollFw()}
+function renderFw(){const f=S.fw;if(!f)return;$('#fwState').textContent=f.can_block?'Windows Firewall rules':'Not supported on this system';$('#fwMode').value=f.auto_block?'auto':'manual';
+ const q=$('#fwSearch').value.toLowerCase(),flt=$('#fwFilter').value;
+ let apps=f.apps.filter(a=>(!q||a.name.toLowerCase().includes(q))&&(flt==='all'||(flt==='active'?a.active:(a.in_blocked||a.out_blocked))));
+ S.fwApps=apps;let html='',last=null;
+ for(const a of apps){const g=a.active?'Active Apps':'Inactive (blocked)';if(g!==last){html+=`<tr class="grp"><td colspan="8">${g}</td></tr>`;last=g}
+  const id=esc(a.exe||a.name),open=S.open.has(a.exe||a.name),dis=(!a.exe||!f.can_block)?'disabled':'';
+  const first=a.hosts[0],more=a.hosts.length-1;
+  html+=`<tr><td><input type="checkbox" data-sel="${id}" ${S.sel.has(a.exe)?'checked':''} ${a.exe?'':'disabled'}></td>
+   <td><div class="app"><button class="chev ${open?'open':''}" data-open="${id}">${ICON.chev}</button>${avatar(a.name)}<span title="${esc(a.exe)}">${esc(a.name)}</span></div></td>
+   <td><button class="fw ${a.in_blocked?'no':'ok'}" ${dis} data-fw="in" data-id="${id}">${a.in_blocked?'Blocked':'Allowed'}</button></td>
+   <td><button class="fw ${a.out_blocked?'no':'ok'}" ${dis} data-fw="out" data-id="${id}">${a.out_blocked?'Blocked':'Allowed'}</button></td>
+   <td class="nowrap">${first?`${cc(first.country)} ${esc(first.name)}`:'<span class="mut">—</span>'}${more>0?`<span class="more">+${more} more</span>`:''}</td>
+   <td class="rx nowrap">${a.rx?fmtR(a.rx):''}</td><td class="tx nowrap">${a.tx?fmtR(a.tx):''}</td><td><canvas class="spark" data-spark='${JSON.stringify(a.spark)}'></canvas></td></tr>`;
+  if(open)html+=a.hosts.map(h=>`<tr class="sub"><td colspan="8">${cc(h.country)} ${esc(h.name)}</td></tr>`).join('')}
+ $('#fwRows').innerHTML=html||'<tr><td colspan="8" class="empty" style="padding:20px">No applications match</td></tr>';
+ document.querySelectorAll('canvas.spark').forEach(c=>{const v=JSON.parse(c.dataset.spark||'[]');const{x,w,h}=setup(c);if(v.length<2)return;const m=Math.max(1,...v);
+  area(x,v.map((y,i)=>[i/(v.length-1)*w,h-1-y/m*(h-3)]),h,css('--rx'),css('--rx-line'),.6)});
+ const n=[...S.sel].length;$('#blockSel').style.display=$('#allowSel').style.display=n?'inline-flex':'none';$('#blockSel').textContent=`Block selected (${n})`;$('#allowSel').textContent=`Allow selected (${n})`}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-fw]');if(b){const a=S.fw.apps.find(a=>(a.exe||a.name)===b.dataset.id);if(a)fwSet(a,b.dataset.fw,!(b.dataset.fw==='in'?a.in_blocked:a.out_blocked))}
+ const o=e.target.closest('[data-open]');if(o){const k=o.dataset.open;S.open.has(k)?S.open.delete(k):S.open.add(k);renderFw()}});
+document.addEventListener('change',e=>{const s=e.target.closest('[data-sel]');if(s){s.checked?S.sel.add(s.dataset.sel):S.sel.delete(s.dataset.sel);renderFw()}});
+async function bulk(blocked){for(const exe of [...S.sel]){const a=S.fw.apps.find(a=>a.exe===exe);if(a&&!(a.protected&&blocked))await post('/api/firewall',{exe,dir:'both',blocked})}S.sel.clear();toast(blocked?'Blocked selected apps (system apps skipped)':'Allowed selected apps');pollFw()}
+$('#blockSel').onclick=()=>bulk(true);$('#allowSel').onclick=()=>bulk(false);
+['fwSearch','fwFilter'].forEach(i=>$('#'+i).addEventListener('input',renderFw));
+$('#fwMode').onchange=async e=>{const s={...S.meta.settings,auto_block_new_apps:e.target.value==='auto'};if(s.auto_block_new_apps&&!await confirmBox('Every application seen for the first time will be blocked automatically (system components are skipped). This can break software you have not used yet. Enable?')){e.target.value='manual';return}
+ const r=await post('/api/settings',s);toast(r.ok?'Saved':r.error);await pollMeta();pollFw()};
+async function pollFw(){S.fw=await get('/api/firewall');renderFw()}
+
+/* ---------- alerts ---------- */
+function dayName(ts,now){const d=new Date(ts*1000),n=new Date(now*1000),a=new Date(d.getFullYear(),d.getMonth(),d.getDate()),b=new Date(n.getFullYear(),n.getMonth(),n.getDate()),diff=Math.round((b-a)/864e5);return diff<=0?'Today':diff===1?'Yesterday':d.toLocaleDateString([], {weekday:'long',day:'numeric',month:'long'})}
+function renderAlerts(){const d=S.al;if(!d)return;const groups=new Map();for(const a of d.alerts){const k=dayName(a.ts,d.now);(groups.get(k)||groups.set(k,[]).get(k)).push(a)}
+ $('#alList').innerHTML=[...groups].map(([k,items])=>`<div class="day">${esc(k)}</div><div class="agroup">${items.map(a=>{
+  const m=/^(.*) initiated its first network connection(?: to (.*))?$/.exec(a.message)||((o=>o&&[null,o[1]])(/^New application is using the network: (.*)$/.exec(a.message)));
+  const when=new Date(a.ts*1000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  const body=m?`${avatar(m[1])} <b>${esc(m[1])}</b> initiated its first network connection${m[2]?' to <b>'+esc(a.host||m[2])+'</b>':''}`:`<b>${esc(a.source)}</b> ${esc(a.message)}`;
+  return `<div class="alert ${a.read?'':'unread'}"><span class="dot"></span><span class="tagnew ${m?'':a.level}">${m?'NEW':a.level==='critical'?'!':a.level==='warning'?'!':'i'}</span><div class="msg"><span class="app">${body}</span></div><div class="when"><div class="mut">${m?'First network activity':esc(a.source)}</div>${when}</div></div>`}).join('')}</div>`).join('')||'<div class="empty" style="padding:30px 0;text-align:center">No alerts in this period</div>'}
+async function pollAlerts(){S.al=await get(`/api/alerts?filter=${$('#alFilter').value}&range=${$('#alRange').value}&q=${encodeURIComponent($('#alSearch').value)}`);renderAlerts()}
+['alFilter','alRange'].forEach(i=>$('#'+i).onchange=pollAlerts);$('#alSearch').oninput=()=>{clearTimeout(S.st);S.st=setTimeout(pollAlerts,250)};
+$('#markRead').onclick=async()=>{await post('/api/alerts/read');await pollMeta();pollAlerts()};
+
+/* ---------- network ---------- */
+function ago(ts,now){const s=Math.max(0,now-ts);if(s<90)return 'now';return new Date(ts*1000).toLocaleString([], {day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}
+function renderNet(){const d=S.net;if(!d)return;const now=Math.floor(Date.now()/1000),q=$('#netSearch').value.toLowerCase();
+ $('#scanBtn').disabled=d.scanning;$('#scanBtn').textContent=d.scanning?'Scanning…':'Scan';$('#autoScan').classList.toggle('on',d.auto_scan);
+ const rows=d.devices.filter(v=>!q||[v.ip,v.mac,v.vendor,KIND_NAME[v.kind]].join(' ').toLowerCase().includes(q));
+ $('#scanInfo').textContent=`${d.devices.filter(v=>v.online).length} online · ${d.devices.length} known`;
+ $('#netRows').innerHTML=rows.map(v=>`<tr><td><span class="on-dot ${v.online?'on':''}" title="${v.online?'Online':'Offline'}"></span></td><td><svg class="kind" viewBox="0 0 24 24">${KIND[v.kind]||KIND.generic}</svg></td>
+  <td>${v.me?'This computer':esc(KIND_NAME[v.kind]||'Generic')}</td><td class="mut">${esc(v.vendor||'')}</td><td>${esc(v.ip)}</td><td class="mut">${esc(v.mac.toUpperCase())}</td><td class="mut">${v.online?'Online':esc(ago(v.last_seen,now))}</td><td class="mut">${esc(ago(v.first_seen,now))}</td></tr>`).join('')||'<tr><td colspan="8" class="empty" style="padding:20px">No devices yet. Press Scan.</td></tr>'}
+async function pollNet(){S.net=await get('/api/network');renderNet()}
+$('#scanBtn').onclick=async()=>{await post('/api/network/scan');S.net&&(S.net.scanning=true);renderNet();toast('Scanning your network…')};
+$('#autoScan').onclick=async()=>{const s={...S.meta.settings,auto_scan:!S.meta.settings.auto_scan};await post('/api/settings',s);await pollMeta();pollNet()};
+$('#netSearch').oninput=renderNet;
+
+/* ---------- system ---------- */
+function lineChart(id,vals,max,col){const{x,w,h}=setup($(id));const n=vals.length;if(n<2)return;const X=i=>i/(n-1)*w,Y=v=>h-6-(v/max)*(h-26);
+ x.strokeStyle=css('--grid');x.beginPath();x.moveTo(0,h-.5);x.lineTo(w,h-.5);x.stroke();
+ area(x,vals.map((v,i)=>[X(i),Y(v)]),h,col,col,.18)}
+function renderSys(){const d=S.sys;if(!d||S.tab!=='system')return;const s=d.samples;if(!s.length)return;const l=s[s.length-1];
+ const cpu=s.map(v=>v[1]),mem=s.map(v=>v[2]/v[3]*100),dsk=s.map(v=>v[4]+v[5]);const mc=nice(Math.max(10,...cpu)*1.2),mm=nice(Math.max(10,...mem)*1.2),md=nice(Math.max(1024*1024,...dsk)*1.2);
+ $('#mxCpu').textContent=mc+'%';$('#mxMem').textContent=mm+'%';$('#mxDisk').textContent=fmtR(md);
+ lineChart('#cCpu',cpu,mc,css('--acc'));lineChart('#cMem',mem,mm,css('--acc'));lineChart('#cDisk',dsk,md,css('--acc'));
+ $('#sysStats').innerHTML=[[l[1].toFixed(0)+' %','CPU Usage'],[fmtB(l[2]),'Memory Usage'],[fmtR(l[4]),'Disk Read'],[fmtR(l[5]),'Disk Write']].map(([a,b])=>`<div><b>${a}</b><span>${b}</span></div>`).join('')}
+async function pollSys(){S.sys=await get('/api/system?range=300');renderSys()}
+
+/* ---------- settings ---------- */
+function renderSettings(){const m=S.meta;if(!m)return;const s=m.settings;
+ const sw=(id,on)=>`<button class="sw ${on?'on':''}" data-set="${id}"></button>`;
+ $('#setBox').innerHTML=`
+ <div class="card"><h3>Appearance</h3><div class="set"><div class="t">Theme</div><select class="pill" id="sTheme"><option value="auto">Automatic</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div>
+ <div class="card"><h3>Data</h3><div class="set"><div class="t">Keep history<small>Older traffic history is deleted automatically</small></div><input type="number" id="sRet" min="1" max="3650" value="${s.retention_days}" style="width:90px"> days</div>
+  <div class="set"><div class="t">Country database<small>${m.geo?'Active – countries are shown for hosts.':'Not installed. Downloads the free DB-IP Lite country database (CC BY 4.0, db-ip.com) when you press the button.'}</small></div><button class="pill" id="geoBtn">${m.geo?'Update':'Download'}</button></div></div>
+ <div class="card"><h3>Alerts</h3><div class="set"><div class="t">New application uses the network</div>${sw('alert_new_apps',s.alert_new_apps)}</div>
+  <div class="set"><div class="t">Traffic spike threshold</div><input type="number" id="sSpike" min="1" max="10000" value="${s.spike_mb_s}" style="width:90px"> MB/s</div></div>
+ <div class="card"><h3>Firewall</h3><div class="set"><div class="t">Block new applications automatically<small>System components and ConWatch are never blocked. Needs administrator rights.</small></div>${sw('auto_block_new_apps',s.auto_block_new_apps)}</div></div>
+ <div class="card"><h3>Network</h3><div class="set"><div class="t">Scan the local network every 5 minutes<small>Sends a ping to every address of your subnet</small></div>${sw('auto_scan',s.auto_scan)}</div></div>
+ <div class="card"><h3>Modules</h3><div class="set"><div class="t">${m.modules.map(n=>`<span class="tagm">${esc(n)}</span>`).join('')}${m.module_errors.map(e=>`<div style="color:var(--bad)">${esc(e)}</div>`).join('')}<small>Write your own: docs/MODULES.md</small></div></div></div>
+ <div class="card"><h3>About</h3><div class="set"><div class="t">ConWatch ${esc(m.version)}<small>Open source, Apache-2.0 · github.com/2-man/conwatch</small></div></div></div>`;
+ $('#sTheme').value=s.theme}
+async function saveSet(patch){const r=await post('/api/settings',{...S.meta.settings,...patch});toast(r.ok?'Saved':(r.error||'Error'));await pollMeta();renderSettings()}
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-set]');if(b){const k=b.dataset.set,v=!S.meta.settings[k];
+ if(k==='auto_block_new_apps'&&v&&!await confirmBox('Every application seen for the first time will be blocked automatically (system components are skipped). Enable?'))return;saveSet({[k]:v})}
+ if(e.target.id==='geoBtn'){const t=e.target;t.disabled=true;t.textContent='Downloading…';const r=await post('/api/geo/download');toast(r.ok?'Country database installed':(r.error||'Download failed'));await pollMeta();renderSettings()}});
+document.addEventListener('change',e=>{if(e.target.id==='sTheme')saveSet({theme:e.target.value});if(e.target.id==='sRet')saveSet({retention_days:+e.target.value||90});if(e.target.id==='sSpike')saveSet({spike_mb_s:+e.target.value||50})});
+
+/* ---------- meta + loop ---------- */
+function applyMeta(){const m=S.meta;if(!m)return;const t=m.settings.theme;if(t&&t!=='auto')document.documentElement.dataset.theme=t;else delete document.documentElement.dataset.theme;
+ $('#ver').textContent='v'+m.version;const bd=$('#badge');bd.style.display=m.unread?'flex':'none';bd.textContent=m.unread>99?'99+':m.unread;
+ $('#adminBanner').classList.toggle('show',!!m.can_elevate&&(S.tab==='traffic'||S.tab==='firewall'))}
+async function pollMeta(){S.meta=await get('/api/meta');applyMeta()}
+let n=0;
+async function poll(force){try{if(!S.meta||force||n%4===0)await pollMeta();
+  if(S.tab==='traffic')await pollTraffic();
+  else if(S.tab==='firewall'&&(force||n%2===0))await pollFw();
+  else if(S.tab==='alerts'&&(force||n%3===0))await pollAlerts();
+  else if(S.tab==='network'&&(force||n%2===0))await pollNet();
+  else if(S.tab==='system')await pollSys();
+  applyMeta();
+  if(S.ov)$('#speed').innerHTML=`<span class="rx">▼ ${fmtR(S.ov.rate.rx)}</span>&nbsp;&nbsp;<span class="tx">▲ ${fmtR(S.ov.rate.tx)}</span>`}catch(e){}}
+applyView();show(S.tab);
+setInterval(()=>{n++;poll(false)},1500);
+addEventListener('resize',()=>{drawTraffic();drawMini();renderSys();renderFw()});
 </script>
 </body>
 </html>

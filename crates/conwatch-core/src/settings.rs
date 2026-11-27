@@ -16,11 +16,13 @@ pub struct Settings {
     pub alert_new_apps: bool,
     /// Automatically add a firewall block for every newly seen application (needs Administrator).
     pub auto_block_new_apps: bool,
+    /// Actively scan the local network every few minutes (ping sweep).
+    pub auto_scan: bool,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Self { theme: "auto".into(), retention_days: 90, spike_mb_s: 50, alert_new_apps: true, auto_block_new_apps: false }
+        Self { theme: "auto".into(), retention_days: 90, spike_mb_s: 50, alert_new_apps: true, auto_block_new_apps: false, auto_scan: false }
     }
 }
 
@@ -54,7 +56,7 @@ mod tests {
     use super::*;
     #[test]
     fn sanitizes() {
-        let s = Settings { theme: "neon".into(), retention_days: 0, spike_mb_s: 999_999, alert_new_apps: true, auto_block_new_apps: false }.sanitized();
+        let s = Settings { theme: "neon".into(), retention_days: 0, spike_mb_s: 999_999, alert_new_apps: true, auto_block_new_apps: false, auto_scan: false }.sanitized();
         assert_eq!((s.theme.as_str(), s.retention_days, s.spike_mb_s), ("auto", 1, 10_000));
         let p: Settings = serde_json::from_str(r#"{"theme":"dark"}"#).unwrap();
         assert_eq!(p.retention_days, 90);
