@@ -498,7 +498,9 @@ fn handle(mut req: Request, state: &Shared, store: &Store) {
             let since = now - range;
             let bucket = (range / 300).max(1);
             let st = store.lock().unwrap();
-            let series: Vec<Value> = st.traffic_buckets(since, bucket).unwrap_or_default().into_iter().map(|(t, r, x)| json!([t, r, x])).collect();
+            // extra history on the left: the chart's view edge lags behind the clock
+            let pad = bucket * 3 + 12;
+            let series: Vec<Value> = st.traffic_buckets(since - pad, bucket).unwrap_or_default().into_iter().map(|(t, r, x)| json!([t, r, x])).collect();
             let (rx, tx) = st.usage_since(since).unwrap_or((0, 0));
             let now_rate = st.traffic_buckets(now - 3, 3).unwrap_or_default().last().map(|(_, r, x)| (*r, *x)).unwrap_or((0, 0));
             let (lan, wan) = st.lan_wan_since(since / 60 * 60).unwrap_or(((0, 0), (0, 0)));

@@ -309,12 +309,12 @@ function dense(series,since,now,step){const m=new Map(series.map(([t,r,x])=>[t,[
 const TICKS=[1,2,5,10,15,30,60,120,300,600,900,1800,3600,7200,10800,21600,43200,86400,172800,604800];
 // Called when new data arrives: complete buckets only, Gaussian smoothing (keeps the byte totals, rounds off bursts).
 function prepTraffic(){const o=S.ov,step=o.bucket,cur=Math.floor(o.now/step)*step;
- const d=dense(o.series,Math.floor((o.now-o.range)/step)*step-step*4,cur-step,step);
- S.sm={step,t:d.map(p=>p[0]+step/2),rx:gaussSmooth(d.map(p=>p[1]),2.5),tx:gaussSmooth(d.map(p=>p[2]),2.5)};S.smAt=performance.now();S.anim=step<=3}
+ const d=dense(o.series,Math.floor((o.now-o.range)/step)*step-step*8-4,cur-step,step);
+ S.sm={step,t:d.map(p=>p[0]+step/2),rx:gaussSmooth(d.map(p=>p[1]),2),tx:gaussSmooth(d.map(p=>p[2]),2)}}
 function drawTraffic(){const o=S.ov,m=S.sm;if(!o||!m||!m.t.length||S.tab!=='traffic'||S.view!=='graph')return;const{x,w,h}=setup($('#cv'));
  const padB=26,bottom=h-padB,E=m.t[m.t.length-1];
- // The window slides continuously between polls (display lags the data by one poll interval).
- const e=S.anim?Math.min(E,E-1.5+(performance.now()-S.smAt)/1000):E,since=e-o.range,X=t=>(t-since)/o.range*w;
+ // The view edge follows the local clock (a fixed lag behind it), so motion is uniform and independent of when data arrives.
+ const e=Math.min(E,Date.now()/1000-(m.step*3+4)),since=e-o.range,X=t=>(t-since)/o.range*w;
  let a=0,b=m.t.length-1;while(a<b&&m.t[a+1]<since)a++;while(b>a&&m.t[b-1]>e)b--;
  let peak=1024;for(let i=a;i<=b;i++)peak=Math.max(peak,m.rx[i],m.tx[i]);
  const target=nice(peak*1.12);S.ymax=S.ymax?S.ymax+(target-S.ymax)*(target>S.ymax?.25:.07):target;if(Math.abs(S.ymax-target)<target*.004)S.ymax=target;
