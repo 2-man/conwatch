@@ -70,7 +70,7 @@ Wbudowane moduły w Rust implementują ten sam trait `Module` bez procesu.
 - [x] **5. Moduły użytkownika** (loader, stdio, uprawnienia, przykład, docs, SDK Python/Node): – loader manifestów, protokół stdio, uprawnienia, SDK + przykłady (Rust/Python/JS), katalog modułów.
 - [x] **6. Things (LAN)** + alerty o nowych urządzeniach.
 - [~] **7. macOS** – kod monitorów jest wieloplatformowy, CI buduje na macOS; brak firewalla: – implementacje `platform::*` (libproc/`nettop`/NetworkExtension), notarization, instalator.
-- [~] **8. Wydania** – CI gotowe (build+test Win/macOS); release.yml buduje zipy na tag v*. instalator Inno Setup (instalacja per-użytkownik, ~3 MB) zbudowany lokalnie i wpięty w release.yml; instalacji/odinstalowania nie uruchamiałem. ZOSTAJE podpisywanie kodu: – CI GitHub Actions (build, testy, instalator MSI/NSIS), podpisywanie.
+- [~] **8. Wydania** – CI gotowe (build+test Win/macOS); release.yml buduje zipy na tag v*. instalator Inno Setup (instalacja per-użytkownik, ~3 MB) zbudowany lokalnie i wpięty w release.yml; cicha instalacja i odinstalowanie sprawdzone. ZOSTAJE podpisywanie kodu: – CI GitHub Actions (build, testy, instalator MSI/NSIS), podpisywanie.
 
 ## Ryzyka
 
