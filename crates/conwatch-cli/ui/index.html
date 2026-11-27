@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ConWatch</title>
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--fg:#1c2530;--mut:#6b7788;--line:#e3e8ef;--acc:#2f7cf6;--rx:#2f7cf6;--tx:#f08a24;--warn:#e0a100;--crit:#d6343a;--ok:#1f9d63}
+@media(prefers-color-scheme:dark){:root{--bg:#10151c;--card:#182029;--fg:#e6ebf2;--mut:#8a97a8;--line:#263140;--acc:#5b9bff;--rx:#5b9bff;--tx:#ffa24a;--warn:#f2c230;--crit:#ff5c63;--ok:#3ccf8e}}
+*{box-sizing:border-box}body{margin:0;font:14px system-ui,Segoe UI,sans-serif;background:var(--bg);color:var(--fg)}
+header{display:flex;align-items:center;gap:24px;padding:12px 24px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0}
+.logo{font-weight:700;font-size:18px;color:var(--acc)}
+nav{display:flex;gap:4px;flex:1}nav button{background:none;border:0;color:var(--mut);padding:8px 14px;border-radius:8px;cursor:pointer;font:inherit}
+nav button.on{background:var(--bg);color:var(--fg);font-weight:600}
+.speed{display:flex;gap:16px;font-variant-numeric:tabular-nums}.rx{color:var(--rx)}.tx{color:var(--tx)}
+main{max-width:1100px;margin:20px auto;padding:0 24px}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+h2{margin:0 0 12px;font-size:15px}canvas{width:100%;height:260px;display:block}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line)}th{color:var(--mut);font-weight:500;font-size:12px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.big{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}.sub{color:var(--mut);font-size:12px}
+.pill{padding:2px 8px;border-radius:99px;font-size:12px;background:var(--bg)}.warning{color:var(--warn)}.critical{color:var(--crit)}.info{color:var(--acc)}
+button.act{background:var(--bg);border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:4px 10px;cursor:pointer}button.act:hover{border-color:var(--crit);color:var(--crit)}
+.tab{display:none}.tab.on{display:block}.empty{color:var(--mut);padding:12px 0}#msg{position:fixed;bottom:16px;right:16px;background:var(--card);border:1px solid var(--line);padding:10px 14px;border-radius:10px;display:none}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">ConWatch</div>
+  <nav id="nav"></nav>
+  <div class="speed"><span class="rx">▼ <b id="rx">0</b></span><span class="tx">▲ <b id="tx">0</b></span></div>
+</header>
+<main>
+  <section class="tab" id="graph">
+    <div class="card"><h2>Network traffic (last 10 min)</h2><canvas id="cv"></canvas></div>
+  </section>
+  <section class="tab" id="usage">
+    <div class="grid" id="usageCards"></div>
+  </section>
+  <section class="tab" id="conns"><div class="card"><h2>Active connections</h2><table><thead><tr><th>Application</th><th>PID</th><th>Remote</th><th></th></tr></thead><tbody id="connRows"></tbody></table></div></section>
+  <section class="tab" id="things"><div class="card"><h2>Devices on your network</h2><table><thead><tr><th>IP</th><th>MAC</th></tr></thead><tbody id="devRows"></tbody></table></div></section>
+  <section class="tab" id="alerts"><div class="card"><h2>Alerts</h2><table><thead><tr><th>Time</th><th>Level</th><th>Source</th><th>Message</th></tr></thead><tbody id="alertRows"></tbody></table></div></section>
+  <section class="tab" id="fw"><div class="card"><h2>Blocked applications</h2><table><tbody id="fwRows"></tbody></table><p class="sub">Blocking uses Windows Firewall and requires running ConWatch as Administrator.</p></div>
+    <div class="card"><h2>Modules</h2><div id="mods"></div></div></section>
+</main>
+<div id="msg"></div>
+<script>
+const TABS={graph:'Graph',usage:'Usage',conns:'Connections',things:'Things',alerts:'Alerts',fw:'Firewall & Modules'};
+const $=id=>document.getElementById(id);let cur=localStorage.tab||'graph',S=null;
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function fmt(b){const u=['B','KB','MB','GB','TB'];let i=0;while(b>=1024&&i<4){b/=1024;i++}return b.toFixed(i?1:0)+' '+u[i]}
+function show(t){cur=t;localStorage.tab=t;document.querySelectorAll('.tab').forEach(e=>e.classList.toggle('on',e.id===t));[...$('nav').children].forEach(b=>b.classList.toggle('on',b.dataset.t===t));draw()}
+for(const t in TABS){const b=document.createElement('button');b.textContent=TABS[t];b.dataset.t=t;b.onclick=()=>show(t);$('nav').append(b)}
+function toast(m){const e=$('msg');e.textContent=m;e.style.display='block';setTimeout(()=>e.style.display='none',3500)}
+async function api(p,exe){const r=await fetch(p,{method:'POST',headers:{'X-ConWatch':'1'},body:JSON.stringify({exe})});const j=await r.json();toast(j.ok?'Done':'Error: '+j.error);refresh()}
+function chart(){const c=$('cv'),d=devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;c.width=w*d;c.height=h*d;const x=c.getContext('2d');x.scale(d,d);x.clearRect(0,0,w,h);
+ const T=S.traffic;if(T.length<2){x.fillStyle=getComputedStyle(document.body).color;x.fillText('Collecting data…',10,20);return}
+ const max=Math.max(1024,...T.map(t=>Math.max(t[1],t[2])))*1.1,css=n=>getComputedStyle(document.documentElement).getPropertyValue(n),X=i=>i/(T.length-1)*(w-50)+45,Y=v=>h-18-v/max*(h-30);
+ x.strokeStyle=css('--line');x.fillStyle=css('--mut');x.font='11px system-ui';
+ for(let i=0;i<=4;i++){const y=Y(max*i/4);x.beginPath();x.moveTo(45,y);x.lineTo(w,y);x.stroke();x.fillText(fmt(max*i/4)+'/s',0,y+4)}
+ [[1,'--rx'],[2,'--tx']].forEach(([k,col])=>{x.beginPath();T.forEach((t,i)=>i?x.lineTo(X(i),Y(t[k])):x.moveTo(X(i),Y(t[k])));x.strokeStyle=css(col);x.lineWidth=2;x.stroke();x.lineTo(X(T.length-1),h-18);x.lineTo(X(0),h-18);x.globalAlpha=.12;x.fillStyle=css(col);x.fill();x.globalAlpha=1})}
+function draw(){if(!S)return;const l=S.traffic.at(-1)||[0,0,0];$('rx').textContent=fmt(l[1])+'/s';$('tx').textContent=fmt(l[2])+'/s';
+ if(cur==='graph')chart();
+ if(cur==='usage')$('usageCards').innerHTML=[['Last 24 hours','day'],['Last 7 days','week'],['Last 30 days','month']].map(([n,k])=>`<div class="card"><div class="sub">${n}</div><div class="big rx">▼ ${fmt(S.usage[k][0])}</div><div class="big tx">▲ ${fmt(S.usage[k][1])}</div></div>`).join('');
+ if(cur==='conns')$('connRows').innerHTML=S.connections.filter(c=>c.proto==='tcp').map(c=>`<tr><td>${esc(c.process)}</td><td>${c.pid}</td><td>${esc(c.remote_addr)}:${c.remote_port}</td><td>${c.exe?`<button class="act" data-exe="${esc(c.exe)}">Block</button>`:''}</td></tr>`).join('')||'<tr><td class="empty">No connections</td></tr>';
+ if(cur==='things')$('devRows').innerHTML=S.devices.map(d=>`<tr><td>${esc(d.ip)}</td><td>${esc(d.mac)}</td></tr>`).join('')||'<tr><td class="empty">No devices found</td></tr>';
+ if(cur==='alerts')$('alertRows').innerHTML=S.alerts.map(a=>`<tr><td>${new Date(a.ts*1000).toLocaleString()}</td><td class="${a.level}">${a.level}</td><td>${esc(a.source)}</td><td>${esc(a.message)}</td></tr>`).join('')||'<tr><td class="empty">No alerts yet</td></tr>';
+ if(cur==='fw'){$('fwRows').innerHTML=S.blocked.map(b=>`<tr><td>${esc(b)}</td><td><button class="act" data-un="${esc(b)}">Unblock</button></td></tr>`).join('')||'<tr><td class="empty">Nothing blocked</td></tr>';
+  $('mods').innerHTML=S.modules.map(m=>`<span class="pill">${esc(m)}</span> `).join('')+S.module_errors.map(e=>`<div class="critical">${esc(e)}</div>`).join('')}}
+document.body.addEventListener('click',e=>{const t=e.target;if(t.dataset.exe&&confirm('Block '+t.dataset.exe+'?'))api('/api/block',t.dataset.exe);if(t.dataset.un)api('/api/unblock',t.dataset.un)});
+async function refresh(){try{S=await(await fetch('/api/state')).json();draw()}catch(e){}}
+show(cur);refresh();setInterval(refresh,1500);addEventListener('resize',draw);
+</script>
+</body>
+</html>

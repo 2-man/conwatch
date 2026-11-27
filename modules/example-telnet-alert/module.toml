@@ -1,0 +1,6 @@
+name = "example-telnet-alert"
+version = "0.1.0"
+description = "Example user module (Python): alerts when any app connects to a remote Telnet port (23)."
+command = "python"
+args = ["main.py"]
+permissions = ["events:read", "alerts:emit"]

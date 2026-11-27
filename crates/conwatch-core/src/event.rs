@@ -45,5 +45,9 @@ pub enum Event {
     ConnectionClosed(Connection),
     /// First time this executable name was seen talking to the network.
     AppFirstSeen { process: String, exe: Option<String> },
+    /// Bytes transferred over all interfaces during the last sampling interval.
+    TrafficSample { rx_bytes: u64, tx_bytes: u64, interval_ms: u64 },
+    /// A device seen on the local network.
+    DeviceSeen { ip: String, mac: String },
     Alert(Alert),
 }

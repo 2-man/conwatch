@@ -63,14 +63,14 @@ Wbudowane moduły w Rust implementują ten sam trait `Module` bez procesu.
 ## Etapy
 
 - [x] **0. Szkielet** – repo, licencja, workspace, plan.
-- [ ] **1. Rdzeń + monitor połączeń (Windows)** – lista połączeń TCP/UDP z procesem, wykrywanie otwarcia/zamknięcia, event bus, trait `Module`, CLI `conwatch watch`. *(w toku)*
-- [ ] **2. Przepustowość per aplikacja** – ETW `Microsoft-Windows-Kernel-Network` (wymaga admina; usługa pomocnicza), agregacja do SQLite, rozwiązywanie hostów (reverse DNS), kraj (GeoLite/offline DB).
-- [ ] **3. UI (Tauri)** – okno z zakładkami Graph / Usage / Alerts, tray z prędkością, jasny/ciemny motyw.
-- [ ] **4. Firewall** – WFP: blokada per aplikacja, tryb pytania, profil.
-- [ ] **5. Moduły użytkownika** – loader manifestów, protokół stdio, uprawnienia, SDK + przykłady (Rust/Python/JS), katalog modułów.
-- [ ] **6. Things (LAN)** + alerty o nowych urządzeniach.
-- [ ] **7. macOS** – implementacje `platform::*` (libproc/`nettop`/NetworkExtension), notarization, instalator.
-- [ ] **8. Wydania** – CI GitHub Actions (build, testy, instalator MSI/NSIS), podpisywanie.
+- [x] **1. Rdzeń + monitor połączeń (Windows)** – lista połączeń TCP/UDP z procesem, wykrywanie otwarcia/zamknięcia, event bus, trait `Module`, CLI `conwatch watch`.
+- [~] **2. Przepustowość** – GOTOWE: ruch całkowity, SQLite, retencja. ZOSTAJE: per aplikacja (ETW), reverse DNS, kraj. Oryginalny opis: – ETW `Microsoft-Windows-Kernel-Network` (wymaga admina; usługa pomocnicza), agregacja do SQLite, rozwiązywanie hostów (reverse DNS), kraj (GeoLite/offline DB).
+- [~] **3. UI** – GOTOWE: panel webowy (`conwatch serve`, lokalnie 127.0.0.1) z zakładkami. ZOSTAJE: okno Tauri + tray. Oryginalny opis: – okno z zakładkami Graph / Usage / Alerts, tray z prędkością, jasny/ciemny motyw.
+- [~] **4. Firewall** – GOTOWE: blokada per aplikacja przez netsh (admin). ZOSTAJE: tryb pytania o nowe aplikacje, WFP. Oryginalny opis: – WFP: blokada per aplikacja, tryb pytania, profil.
+- [x] **5. Moduły użytkownika** (loader, stdio, uprawnienia, przykład, docs; SDK – później): – loader manifestów, protokół stdio, uprawnienia, SDK + przykłady (Rust/Python/JS), katalog modułów.
+- [x] **6. Things (LAN)** + alerty o nowych urządzeniach.
+- [~] **7. macOS** – kod monitorów jest wieloplatformowy, CI buduje na macOS; brak firewalla: – implementacje `platform::*` (libproc/`nettop`/NetworkExtension), notarization, instalator.
+- [~] **8. Wydania** – CI gotowe (build+test Win/macOS); ZOSTAJE instalator i podpisywanie: – CI GitHub Actions (build, testy, instalator MSI/NSIS), podpisywanie.
 
 ## Ryzyka
 
