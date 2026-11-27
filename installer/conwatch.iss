@@ -13,7 +13,8 @@ OutputBaseFilename=conwatch-setup-{#AppVersion}
 Compression=lzma2
 SolidCompression=yes
 LicenseFile=..\LICENSE
-PrivilegesRequired=admin
+PrivilegesRequired=lowest
+PrivilegesRequiredOverridesAllowed=dialog
 ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayIcon={app}\conwatch-app.exe
 
@@ -23,7 +24,7 @@ Source: "..\target\release\conwatch.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\modules\*"; DestDir: "{app}\modules"; Flags: ignoreversion recursesubdirs
-Source: "..\sdk\*"; DestDir: "{app}\sdk"; Flags: ignoreversion recursesubdirs
+Source: "..\sdk\*"; DestDir: "{app}\sdk"; Excludes: "__pycache__"; Flags: ignoreversion recursesubdirs
 
 [Icons]
 Name: "{group}\ConWatch"; Filename: "{app}\conwatch-app.exe"

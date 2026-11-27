@@ -13,6 +13,8 @@ pub mod resolve;
 pub mod settings;
 pub mod storage;
 pub mod traffic;
+#[cfg(all(windows, feature = "wfp"))]
+pub mod wfp;
 
 pub use engine::Engine;
 pub use event::{Alert, AlertLevel, Connection, Event, Proto};

@@ -47,6 +47,10 @@ fn main() {
         }
         Some("block") => report(args.get(1).map(|e| firewall::block(e)).unwrap_or(Err("missing <exe-path>".into())), "blocked"),
         Some("unblock") => report(args.get(1).map(|e| firewall::unblock(e)).unwrap_or(Err("missing <exe-path>".into())), "unblocked"),
+        #[cfg(all(windows, feature = "wfp"))]
+        Some("wfp-block") => report(args.get(1).map(|e| conwatch_core::wfp::block_app(e)).unwrap_or(Err("missing <exe-path>".into())), "blocked (WFP)"),
+        #[cfg(all(windows, feature = "wfp"))]
+        Some("wfp-unblock") => report(args.get(1).map(|e| conwatch_core::wfp::unblock_app(e)).unwrap_or(Err("missing <exe-path>".into())), "unblocked (WFP)"),
         Some("autostart") => autostart(args.get(1).map(String::as_str)),
         Some("blocked") => firewall::blocked().iter().for_each(|b| println!("{b}")),
         _ => usage(),
